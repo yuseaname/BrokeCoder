@@ -3,6 +3,15 @@ import { QUESTS, buildQuestIndex } from "./questData.js";
 
 const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
 
+const RESOURCE_KEY_MAP = {
+  focus: "focusEnergy",
+  focusEnergy: "focusEnergy",
+  nerve: "nerveEnergy",
+  nerveEnergy: "nerveEnergy",
+  physical: "physicalEnergy",
+  physicalEnergy: "physicalEnergy",
+};
+
 const defaultQuestState = () => ({
   active: {}, // questId -> { stepId, stepIndex }
   completed: [],
@@ -21,6 +30,71 @@ function stepById(quest, stepId) {
   if (!quest) return null;
   if (!stepId) return quest.steps?.[0] || null;
   return quest.steps?.find((s) => s.id === stepId) || null;
+}
+
+function normalizeResourceKey(key) {
+  return RESOURCE_KEY_MAP[key] || key;
+}
+
+function getResourceBar(player, key) {
+  if (!player?.resources) return null;
+  const normalized = normalizeResourceKey(key);
+  return player.resources[normalized] || null;
+}
+
+function adjustResourceBar(player, key, delta) {
+  if (!player) return;
+  const normalized = normalizeResourceKey(key);
+  player.resources = player.resources || {};
+  const current = player.resources[normalized] || { current: 0, max: 0 };
+  const max = typeof current.max === "number" ? current.max : 10;
+  current.current = clamp((current.current || 0) + delta, 0, max);
+  current.max = max;
+  player.resources[normalized] = current;
+}
+
+function resourceLabel(key) {
+  const normalized = normalizeResourceKey(key);
+  if (normalized === "focusEnergy") return "Focus";
+  if (normalized === "nerveEnergy") return "Nerve";
+  if (normalized === "physicalEnergy") return "Physical";
+  return normalized;
+}
+
+function getDefaultFailurePenalty(quest) {
+  const difficulty = quest?.difficulty || "medium";
+  const scale = difficulty === "hard" ? 3 : difficulty === "low" ? 1 : 2;
+  return {
+    resources: {
+      focusEnergy: -scale,
+      nerveEnergy: -scale,
+      physicalEnergy: -scale,
+    },
+    money: -5 * scale,
+    time: 1,
+  };
+}
+
+function mergeFailurePenalty(outcome, quest) {
+  const penalty = quest?.failurePenalty || getDefaultFailurePenalty(quest);
+  if (!penalty) return outcome;
+  const merged = { ...(outcome || {}), outcomes: { ...(outcome?.outcomes || {}) } };
+  const resources = { ...(merged.outcomes.resources || {}) };
+  const penaltyResources = penalty.resources || {};
+  ["focusEnergy", "nerveEnergy", "physicalEnergy"].forEach((key) => {
+    const normalized = normalizeResourceKey(key);
+    const existing = resources[normalized];
+    const penaltyDelta = penaltyResources[normalized] ?? penaltyResources[key];
+    if (typeof penaltyDelta === "number") {
+      if (typeof existing !== "number" || existing >= 0 || existing > penaltyDelta) {
+        resources[normalized] = penaltyDelta;
+      }
+    }
+  });
+  merged.outcomes.resources = resources;
+  if (typeof penalty.money === "number" && typeof merged.outcomes.money !== "number") merged.outcomes.money = penalty.money;
+  if (typeof penalty.time === "number" && typeof merged.outcomes.time !== "number") merged.outcomes.time = penalty.time;
+  return merged;
 }
 
 function questOutcomeEdges(quest) {
@@ -78,6 +152,18 @@ export function createQuestManager(getState) {
     if (prereq.requiredStats) {
       const stats = state.player.stats || {};
       if (Object.entries(prereq.requiredStats).some(([key, val]) => (stats[key] || 0) < val)) return false;
+    }
+    if (prereq.requiredFlags) {
+      const flags = state.player.flags || {};
+      const missingFlag = Object.entries(prereq.requiredFlags).some(([key, expected]) => flags[key] !== expected);
+      if (missingFlag) return false;
+    }
+    if (prereq.minResources) {
+      const lacksResource = Object.entries(prereq.minResources).some(([key, val]) => {
+        const bar = getResourceBar(state.player, key);
+        return !bar || bar.current < val;
+      });
+      if (lacksResource) return false;
     }
     if (prereq.minEnergy && (state.player.phoneEnergy?.current || 0) < prereq.minEnergy) return false;
     return true;
@@ -190,14 +276,13 @@ export function createQuestManager(getState) {
       });
     }
 
-    if (outcomes.resources) {
-      player.resources = player.resources || {};
-      Object.entries(outcomes.resources).forEach(([key, delta]) => {
-        const bar = player.resources[key] || { current: 0, max: 10 };
-        bar.current = clamp((bar.current || 0) + delta, 0, bar.max || 10);
-        player.resources[key] = bar;
-      });
-    }
+    const resourceOutcomes = { ...(outcomes.resources || {}) };
+    ["focusEnergy", "nerveEnergy", "physicalEnergy", "focus", "nerve", "physical"].forEach((key) => {
+      if (typeof outcomes[key] === "number") {
+        resourceOutcomes[key] = (resourceOutcomes[key] || 0) + outcomes[key];
+      }
+    });
+    Object.entries(resourceOutcomes).forEach(([key, delta]) => adjustResourceBar(player, key, delta));
 
     if (outcomes.addItems) {
       player.inventory = player.inventory || [];
@@ -257,16 +342,24 @@ export function createQuestManager(getState) {
     if (!choice) return { ok: false, reason: "Choice missing" };
     const player = state.player || {};
 
+    if (choice.requiresFlag && player.flags?.[choice.requiresFlag] !== true) {
+      return { ok: false, reason: "Requirement not met" };
+    }
+    if (choice.blockedByFlag && player.flags?.[choice.blockedByFlag]) {
+      return { ok: false, reason: "Blocked by previous choice" };
+    }
+
     // affordability
     const cost = choice.cost || {};
     const phoneEnergy = player.phoneEnergy || { current: 0, max: 10 };
     if (typeof cost.energy === "number" && phoneEnergy.current < cost.energy) return { ok: false, reason: "Not enough phone energy" };
-    const resourceBlock = ["physical", "focus", "nerve"].find((key) => {
-      if (typeof cost[key] !== "number") return false;
-      const res = player.resources?.[key];
-      return !res || res.current < cost[key];
+    const resourceBlock = Object.entries(cost).find(([key, val]) => {
+      if (typeof val !== "number") return false;
+      if (!RESOURCE_KEY_MAP[key] && !Object.values(RESOURCE_KEY_MAP).includes(key)) return false;
+      const res = getResourceBar(player, key);
+      return !res || res.current < val;
     });
-    if (resourceBlock) return { ok: false, reason: `Not enough ${resourceBlock}` };
+    if (resourceBlock) return { ok: false, reason: `Not enough ${resourceLabel(resourceBlock[0])}` };
     if (typeof cost.money === "number" && (player.money || 0) < cost.money) return { ok: false, reason: "Not enough money" };
     if (typeof cost.streetCred === "number" && (player.streetCred || 0) < cost.streetCred) return { ok: false, reason: "Not enough reputation" };
     if (typeof cost.time === "number" && cost.time > 12 && (player.time?.hour || 0) > 20) return { ok: false, reason: "Not enough time left today" };
@@ -310,18 +403,11 @@ export function createQuestManager(getState) {
         }
       });
     }
-    if (cost.physical) {
-      const res = player.resources?.physical;
-      if (res) res.current = clamp(res.current - cost.physical, 0, res.max);
-    }
-    if (cost.focus) {
-      const res = player.resources?.focus;
-      if (res) res.current = clamp(res.current - cost.focus, 0, res.max);
-    }
-    if (cost.nerve) {
-      const res = player.resources?.nerve;
-      if (res) res.current = clamp(res.current - cost.nerve, 0, res.max);
-    }
+    Object.entries(cost).forEach(([key, val]) => {
+      if (typeof val !== "number") return;
+      if (!RESOURCE_KEY_MAP[key] && !Object.values(RESOURCE_KEY_MAP).includes(key)) return;
+      adjustResourceBar(player, key, -val);
+    });
   }
 
   function advanceQuest(questId, outcome) {
@@ -355,10 +441,13 @@ export function createQuestManager(getState) {
     const result = evaluateChoice(questId, choiceId, randomFn);
     if (!result.ok) return result;
     payCost(result.cost);
-    const resolvedOutcome = {
+    let resolvedOutcome = {
       ...(result.outcome || {}),
       outcomes: { ...(result.outcome?.outcomes || {}) },
     };
+    if (!result.succeeded) {
+      resolvedOutcome = mergeFailurePenalty(resolvedOutcome, result.quest);
+    }
     if (typeof resolvedOutcome.outcomes.time === "undefined" && typeof result.cost?.time === "number") {
       resolvedOutcome.outcomes.time = result.cost.time;
     }
