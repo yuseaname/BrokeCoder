@@ -30,6 +30,12 @@ export function showDialogue(characterId, text, choices = []) {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
     btn.textContent = choice.label;
+    if (choice.meta) {
+      const meta = document.createElement("span");
+      meta.className = "choice-meta";
+      meta.textContent = choice.meta;
+      btn.appendChild(meta);
+    }
     btn.addEventListener("click", () => {
       if (choice.onSelect) choice.onSelect();
     });

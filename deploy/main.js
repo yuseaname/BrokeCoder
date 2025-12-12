@@ -20,6 +20,8 @@ import {
   getMissionById,
   getShopItem,
 } from "./gameContent.js";
+import { createQuestManager } from "./questManager.js";
+import { QUESTS } from "./questData.js";
 
 console.log("[BrokeCoder] imports loaded successfully");
 
@@ -49,21 +51,37 @@ const selectors = {
   inventoryPanel: document.getElementById("inventory-panel"),
   locationList: document.getElementById("location-list"),
   missionList: document.getElementById("mission-list"),
+  questLogList: document.getElementById("quest-log-list"),
   shopList: document.getElementById("shop-list"),
   inventoryList: document.getElementById("inventory-list"),
   chapterProgress: document.getElementById("chapter-progress"),
 };
 
+const defaultQuestState = () => ({
+  active: {},
+  completed: [],
+  failed: [],
+  unlocked: [],
+  locked: [],
+  log: [],
+});
 const FALLBACK_HERO_IMAGE = GAME_MAIN_IMAGE || "./media/game/brokecodermain.png";
 const SAVE_KEY = "brokecoder_save_v2";
 let heroImagePath = FALLBACK_HERO_IMAGE;
 let focusedIndex = 0;
 let resourceTicker = null;
 let gameState = createDefaultState();
+let questManager = createQuestManager(() => gameState);
+syncQuestState();
+
+function syncQuestState() {
+  questManager.ensureQuestState(gameState);
+  questManager.validateGraph();
+}
 
 function createDefaultState() {
   return {
-    saveVersion: 2,
+    saveVersion: 3,
     seasonKey: STORY_START.seasonKey,
     chapterId: STORY_START.chapterId,
     sceneId: STORY_START.sceneId,
@@ -76,6 +94,11 @@ function createDefaultState() {
       money: 20,
       morale: 5,
       hp: 20,
+      phoneEnergy: { current: 10, max: 10 },
+      streetCred: 0,
+      time: { day: 1, hour: 8 },
+      flags: {},
+      quests: defaultQuestState(),
       stats: { ...BASE_STATS },
       resources: {
         focus: { current: START_RESOURCES.focus, max: RESOURCE_CONFIG.focus.max },
@@ -125,6 +148,11 @@ function hydrateState(raw) {
     ...(raw.player || {}),
     stats: { ...defaults.player.stats, ...(raw.player?.stats || {}) },
     resources: normalizeResources(raw.player?.resources || {}),
+    phoneEnergy: raw.player?.phoneEnergy || defaults.player.phoneEnergy,
+    streetCred: raw.player?.streetCred ?? defaults.player.streetCred,
+    time: raw.player?.time || defaults.player.time,
+    flags: { ...defaults.player.flags, ...(raw.player?.flags || {}) },
+    quests: raw.player?.quests || defaultQuestState(),
     inventory: Array.isArray(raw.player?.inventory) ? raw.player.inventory : [],
     gear: { ...defaults.player.gear, ...(raw.player?.gear || {}) },
     gearOwned: Array.isArray(raw.player?.gearOwned) ? raw.player.gearOwned : defaults.player.gearOwned,
@@ -156,6 +184,31 @@ function adjustResource(key, delta) {
   const res = gameState.player.resources[key];
   if (!res) return;
   res.current = clamp(res.current + delta, 0, res.max);
+}
+
+function adjustPhoneEnergy(delta) {
+  const energy = gameState.player.phoneEnergy || { current: 0, max: 10 };
+  energy.current = clamp(energy.current + delta, 0, energy.max);
+  gameState.player.phoneEnergy = energy;
+  return energy.current;
+}
+
+function advanceTime(hours = 1) {
+  const time = gameState.player.time || { day: 1, hour: 8 };
+  let { day, hour } = time;
+  hour += hours;
+  while (hour >= 24) {
+    day += 1;
+    hour -= 24;
+  }
+  gameState.player.time = { day, hour };
+}
+
+function formatTime() {
+  const { day, hour } = gameState.player.time || { day: 1, hour: 0 };
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const hr12 = ((hour + 11) % 12) + 1;
+  return `Day ${day}, ${hr12}:00 ${suffix}`;
 }
 
 function spendResources(cost = {}) {
@@ -193,6 +246,15 @@ function applyEffects(effects = {}) {
   player.money = clamp(player.money + (effects.money || 0), -99, 99999);
   player.morale = clamp(player.morale + (effects.morale || 0), 0, 100);
   player.hp = clamp(player.hp + (effects.hp || 0), 0, 100);
+  player.streetCred = clamp((player.streetCred || 0) + (effects.streetCred || 0), -50, 999);
+  if (typeof effects.energy === "number") adjustPhoneEnergy(effects.energy);
+  if (typeof effects.time === "number") advanceTime(effects.time);
+  if (effects.flags) {
+    player.flags = player.flags || {};
+    Object.entries(effects.flags).forEach(([k, v]) => {
+      player.flags[k] = v;
+    });
+  }
 
   Object.entries(effects.stats || {}).forEach(([key, delta]) => {
     player.stats[key] = clamp((player.stats[key] || 0) + delta, 1, 99);
@@ -250,6 +312,35 @@ function setStatus(message = "") {
   }
 }
 
+function describeCost(cost = {}) {
+  const parts = [];
+  if (typeof cost.energy === "number") parts.push(`Energy -${cost.energy}`);
+  if (typeof cost.time === "number") parts.push(`Time +${cost.time}h`);
+  if (typeof cost.money === "number") parts.push(`$-${cost.money}`);
+  if (typeof cost.streetCred === "number") parts.push(`Cred -${cost.streetCred}`);
+  ["focus", "nerve", "physical"].forEach((key) => {
+    if (typeof cost[key] === "number") parts.push(`${RESOURCE_CONFIG[key]?.label || key} -${cost[key]}`);
+  });
+  if (cost.items?.length) parts.push(`Items: ${cost.items.map((i) => `${i.id} x${i.qty || 1}`).join(", ")}`);
+  return parts.join(" · ");
+}
+
+function describePrereqs(quest = {}) {
+  const prereq = quest.prerequisites || {};
+  const parts = [];
+  if (prereq.completedQuests?.length) parts.push(`Needs: ${prereq.completedQuests.join(", ")}`);
+  if (prereq.requiredItems?.length) parts.push(`Items: ${prereq.requiredItems.join(", ")}`);
+  if (prereq.requiredStats) {
+    Object.entries(prereq.requiredStats).forEach(([stat, val]) => parts.push(`${stat} ${val}+`));
+  }
+  if (prereq.minEnergy) parts.push(`Energy >= ${prereq.minEnergy}`);
+  return parts.join(" · ");
+}
+
+function getActiveStepForQuest(questId) {
+  return gameState.player?.quests?.active?.[questId]?.stepId || null;
+}
+
 function gearLabel(id) {
   const gear = getGearById(id);
   if (gear?.name) return gear.name;
@@ -264,6 +355,13 @@ function renderHud() {
     <div class="hud-item"><span class="hud-label">Level</span><span class="hud-value">${player.level}</span></div>
     <div class="hud-item"><span class="hud-label">XP</span><span class="hud-value">${player.xp}/${xpTarget}</span></div>
     <div class="hud-item"><span class="hud-label">Money</span><span class="hud-value">$${player.money}</span></div>
+    <div class="hud-item"><span class="hud-label">Street Cred</span><span class="hud-value">${player.streetCred}</span></div>
+    <div class="hud-item">
+      <span class="hud-label">Phone Energy</span>
+      <span class="hud-value">${player.phoneEnergy?.current ?? 0}/${player.phoneEnergy?.max ?? 0}</span>
+      <div class="resource-bar"><span class="resource-fill" style="width:${clamp(Math.round(((player.phoneEnergy?.current || 0) / (player.phoneEnergy?.max || 1)) * 100), 0, 100)}%"></span></div>
+    </div>
+    <div class="hud-item"><span class="hud-label">Time</span><span class="hud-value">${formatTime()}</span></div>
     <div class="hud-item"><span class="hud-label">HP</span><span class="hud-value">${player.hp}</span></div>
     <div class="hud-item"><span class="hud-label">Morale</span><span class="hud-value">${player.morale}</span></div>
     <div class="hud-item"><span class="hud-label">Stats</span><span class="hud-value">Code ${player.stats.coding} · Hustle ${player.stats.hustle} · Focus ${player.stats.focus} · Street ${player.stats.streetsmarts} · Fit ${player.stats.fitness}</span></div>
@@ -329,6 +427,7 @@ function showGameScreen(message = "Welcome to BrokeCoder. Season 1: The Phone Er
   renderMissions();
   renderShop();
   renderInventory();
+  renderQuestLog();
   setMode(gameState.mode || "story");
 }
 
@@ -486,6 +585,7 @@ async function handleMenuAction(action) {
       const save = loadState();
       if (save) {
         gameState = hydrateState(save);
+        syncQuestState();
         recalcResourceCaps();
         renderHud();
         renderLocations();
@@ -569,6 +669,7 @@ function setMode(mode = "story") {
   } else if (mode === "inventory") {
     renderInventory();
   }
+  renderQuestLog();
   saveState();
 }
 
@@ -623,6 +724,9 @@ function playScene(scene) {
   setMode("story");
 
   const createChoiceHandler = (choice) => () => {
+    adjustPhoneEnergy(-1);
+    advanceTime(1);
+    renderHud();
     if (choice.effects) applyEffects(choice.effects);
     if (choice.lessonId) {
       setMode("story");
@@ -721,46 +825,192 @@ function renderLocations() {
 
 function renderMissions(locationId = gameState.currentLocation) {
   if (!selectors.missionList) return;
-  const allowed = unlockedSeasons();
-  const missions = CITY_CONTENT.missions.filter(
-    (m) => m.locationId === locationId && allowed.includes(m.season)
-  );
+  const quests = questManager.getQuestsForLocation(locationId);
   selectors.missionList.innerHTML = "";
 
-  if (!missions.length) {
-    selectors.missionList.innerHTML = `<div class="mission-card"><div class="mission-summary">No missions at this spot yet.</div></div>`;
+  if (!quests.length) {
+    selectors.missionList.innerHTML = `<div class="mission-card"><div class="mission-summary">No quests at this spot yet.</div></div>`;
     return;
   }
 
-  missions.forEach((mission) => {
+  quests.forEach(({ quest, status, activeStepId }) => {
     const card = document.createElement("div");
     card.className = "mission-card";
-    const repeated = gameState.player.completedMissions.includes(mission.id);
-    const costText = Object.entries(mission.cost || {})
-      .map(([key, val]) => `${RESOURCE_CONFIG[key]?.label || key} -${val}`)
-      .join(" · ");
-    const rewardText = Object.entries(mission.rewards || {})
-      .filter(([key]) => ["money", "xp", "morale"].includes(key))
-      .map(([key, val]) => `${key === "money" ? "$" : ""}${val}${key === "xp" ? "xp" : ""}`)
-      .join(" · ");
+    const step = activeStepId ? quest.steps.find((s) => s.id === activeStepId) : quest.steps?.[0];
+    const headlineCost = describeCost(step?.choices?.[0]?.cost || {});
+    const prereqText = describePrereqs(quest);
+    const badgeLabel = quest.type === "main" ? `Act ${quest.act} Main` : quest.type === "gig" ? "Repeatable Gig" : "Side Quest";
+    const statusLabel = status === "completed" ? "Completed" : status === "active" ? "In Progress" : status === "locked" ? "Locked" : "Available";
     card.innerHTML = `
       <div>
-        <h4>${mission.title} ${repeated ? '<span class="badge">Repeat</span>' : ""}</h4>
-        <div class="mission-summary">${mission.summary}</div>
+        <h4>${quest.title} <span class="badge">${badgeLabel}</span></h4>
+        <div class="mission-summary">${quest.description}</div>
       </div>
       <div class="cost-row">
-        <span class="badge">${mission.season === "season1" ? "Phone Era" : "Laptop Era"}</span>
-        <span>${costText || "No cost"}</span>
+        <span class="badge">${statusLabel}</span>
+        <span>${headlineCost || "See choices for cost"}</span>
       </div>
-      <div class="mission-summary">Rewards: ${rewardText || "Story beats"}</div>
+      <div class="mission-summary">${prereqText || "No prerequisites listed."}</div>
     `;
     const btn = document.createElement("button");
     btn.className = "primary-btn";
-    btn.textContent = repeated ? "Replay Mission" : "Start Mission";
-    btn.onclick = () => startMission(mission);
+    btn.textContent = status === "active" ? "Resume Quest" : status === "completed" ? "Replay (repeatable only)" : "Start Quest";
+    btn.disabled = status === "locked" || (status === "completed" && !quest.repeatable);
+    btn.onclick = () => openQuest(quest.id);
     card.appendChild(btn);
     selectors.missionList.appendChild(card);
   });
+}
+
+function buildChoiceMeta(choice = {}) {
+  const costs = describeCost(choice.cost || {});
+  const risks = choice.risk || choice.failChance ? `Risk: ${choice.risk || `${Math.round((choice.failChance || 0) * 100)}% fail`}` : "";
+  const skill = choice.skillCheck ? `Check: ${choice.skillCheck.stat} >= ${choice.skillCheck.threshold}` : "";
+  return [costs, skill, risks].filter(Boolean).join(" · ");
+}
+
+function openQuest(questId) {
+  const status = questManager.getQuestWithStatus(questId);
+  if (!status) {
+    setStatus("Quest not found.");
+    return;
+  }
+  if (status.status === "locked") {
+    setStatus("Quest locked. Meet prerequisites first.");
+    return;
+  }
+  if (status.status === "available" || (status.status === "completed" && status.quest?.repeatable)) {
+    const started = questManager.startQuest(questId);
+    if (!started.ok) {
+      setStatus(started.reason || "Cannot start quest yet.");
+      return;
+    }
+    renderQuestLog();
+  }
+  presentQuestStep(questId);
+}
+
+function presentQuestStep(questId) {
+  const data = questManager.getQuestWithStatus(questId);
+  if (!data) return;
+  const quest = data.quest;
+  const activeStepId = getActiveStepForQuest(questId);
+  const step = activeStepId ? quest.steps.find((s) => s.id === activeStepId) : quest.steps?.[0];
+  if (!step) {
+    setStatus("Quest step missing.");
+    return;
+  }
+  const choices = (step.choices || []).map((choice) => ({
+    label: choice.label,
+    meta: buildChoiceMeta(choice),
+    onSelect: () => handleQuestChoice(quest.id, choice),
+  }));
+  if (!choices.length) {
+    setStatus("No choices available.");
+    return;
+  }
+  showDialogue("charlie", `[${quest.title}] ${step.text}`, choices);
+}
+
+function handleQuestChoice(questId, choice) {
+  const preview = questManager.evaluateChoice(questId, choice.id, Math.random);
+  if (!preview.ok) {
+    setStatus(preview.reason || "Cannot take that action.");
+    return;
+  }
+
+  const finish = () => {
+    const result = questManager.resolveChoice(questId, choice.id, Math.random);
+    if (!result.ok) {
+      setStatus(result.reason || "Quest action failed.");
+      return;
+    }
+    maybeLevelUp();
+    recalcResourceCaps();
+    renderHud();
+    renderInventory();
+    renderQuestLog();
+    renderMissions();
+    saveState();
+    const outcomeText = result.succeeded ? "Success" : "Setback";
+    setStatus(`${outcomeText}: ${choice.label} (${preview.quest?.title || questId})`);
+    if (gameState.player.quests.active[questId]) {
+      presentQuestStep(questId);
+    } else {
+      hideDialogue();
+    }
+  };
+
+  if (choice.lessonId) {
+    startLesson(choice.lessonId, {
+      onComplete: () => finish(),
+      onCancel: () => setStatus("Lesson cancelled."),
+    });
+    return;
+  }
+
+  finish();
+}
+
+function renderQuestLog() {
+  if (!selectors.questLogList) return;
+  const qState = questManager.ensureQuestState(gameState);
+  const entries = [];
+
+  Object.keys(qState.active).forEach((questId) => {
+    const { quest } = questManager.getQuestWithStatus(questId) || {};
+    if (!quest) return;
+    const stepId = qState.active[questId].stepId;
+    const step = quest.steps?.find((s) => s.id === stepId) || quest.steps?.[0];
+    entries.push({
+      quest,
+      status: "Active",
+      detail: step?.text || quest.description,
+      cost: describeCost(step?.choices?.[0]?.cost || {}),
+    });
+  });
+
+  const available = questManager.getAvailableQuests().filter(
+    (quest) => !qState.active[quest.id] && !qState.completed.includes(quest.id)
+  );
+  available.slice(0, 6).forEach((quest) => {
+    entries.push({
+      quest,
+      status: "Available",
+      detail: quest.description,
+      cost: describeCost(quest.steps?.[0]?.choices?.[0]?.cost || {}),
+    });
+  });
+
+  const completedMain = (qState.completed || [])
+    .map((id) => QUESTS.find((q) => q.id === id))
+    .filter((q) => q?.type === "main")
+    .slice(-3);
+  completedMain.forEach((quest) => {
+    entries.push({
+      quest,
+      status: "Completed",
+      detail: quest.description,
+      cost: "",
+    });
+  });
+
+  if (!entries.length) {
+    selectors.questLogList.innerHTML = `<div class="mission-summary">No quests yet. Check city locations.</div>`;
+    return;
+  }
+
+  selectors.questLogList.innerHTML = entries
+    .map(
+      (entry) => `
+      <div class="quest-entry">
+        <div class="quest-title">${entry.quest.title} <span class="badge">${entry.status}</span></div>
+        <div class="quest-meta">${entry.detail}</div>
+        <div class="quest-meta">${entry.cost || describePrereqs(entry.quest) || ""}</div>
+      </div>
+    `
+    )
+    .join("");
 }
 
 function scaleRewards(rewards = {}, multiplier = 1) {
@@ -786,12 +1036,19 @@ function scaleRewards(rewards = {}, multiplier = 1) {
 function startMission(mission) {
   const details = mission?.id ? mission : getMissionById(mission);
   if (!details) return;
+  const phoneCost = details.energyCost || 2;
+  if ((gameState.player.phoneEnergy?.current || 0) < phoneCost) {
+    setStatus("Phone battery too low for online mission. Charge or rest first.");
+    return;
+  }
   const canSpend = spendResources(details.cost || {});
   if (!canSpend) {
     setStatus("Not enough Focus / Nerve / Physical energy for that mission.");
     renderHud();
     return;
   }
+  adjustPhoneEnergy(-phoneCost);
+  advanceTime(1);
   renderHud();
   setMode("city");
   startLesson(details.lessonId, {
@@ -957,6 +1214,7 @@ async function startNewGameFlow() {
 
   localStorage.removeItem(SAVE_KEY);
   gameState = createDefaultState();
+  syncQuestState();
   console.log("[BrokeCoder] game state reset, sceneId:", gameState.sceneId);
   renderHud();
   renderLocations();
@@ -998,6 +1256,7 @@ function renderMmoMeta() {
   renderMissions();
   renderShop();
   renderInventory();
+  renderQuestLog();
 }
 
 async function init() {

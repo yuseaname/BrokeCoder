@@ -57,6 +57,14 @@ export const GEAR_LIBRARY = {
     bonuses: { hustle: 1, fitness: 1 },
     flavor: "Mobile HQ. Smells like old fries but moves missions faster.",
   },
+  burner_phone: {
+    id: "burner_phone",
+    name: "Burner Phone",
+    slot: "device",
+    tier: 0,
+    bonuses: { streetsmarts: 1 },
+    flavor: "Backup device when the cracked one dies.",
+  },
 };
 
 export const SHOP_ITEMS = [
@@ -90,7 +98,32 @@ export const SHOP_ITEMS = [
     type: "consumable",
     cost: 18,
     description: "Keep the cracked phone alive during all-nighters.",
-    effects: { resources: { focus: 3, nerve: 1 } },
+    effects: { resources: { focus: 3, nerve: 1 }, energy: 6 },
+  },
+  {
+    id: "duct_tape",
+    name: "Duct Tape Roll",
+    type: "consumable",
+    cost: 7,
+    description: "Holds cracked phones, scooters, and hope together.",
+    effects: { energy: 2 },
+  },
+  {
+    id: "protein_bar",
+    name: "Protein Bar",
+    type: "consumable",
+    cost: 5,
+    description: "Cheap calories for physical stamina.",
+    effects: { resources: { physical: 3 } },
+  },
+  {
+    id: "burner_phone",
+    name: "Burner Phone",
+    type: "gear",
+    gearId: "burner_phone",
+    cost: 40,
+    description: "Backup connection when your cracked screen dies.",
+    effects: { energy: 4, stats: { streetsmarts: 1 } },
   },
   {
     id: "keyboard",
