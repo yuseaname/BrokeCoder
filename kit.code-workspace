@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "game-ui/kit"
+		},
+		{
+			"name": "template-webpack",
+			"path": "snes/template-webpack"
+		},
+		{
+			"path": "story-engine/inkjs"
+		},
+		{
+			"path": "typing-engine/monkeytype"
+		}
+	],
+	"settings": {}
+}

@@ -1,0 +1,30 @@
+:root {
+  --bg: #0f1115;
+  --panel: #181c24;
+  --accent: #4de0d9;
+  --text: #e5e9f0;
+  --muted: #8a92a3;
+  --danger: #ff5c8d;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: "Space Grotesk", "Segoe UI", sans-serif; background: radial-gradient(circle at 20% 20%, #18202b, #0f1115 55%), #0f1115; color: var(--text); }
+#app { max-width: 960px; margin: 0 auto; padding: 20px; }
+header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+h1 { margin: 0; letter-spacing: 1px; }
+section { background: var(--panel); padding: 12px 14px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); }
+button { background: var(--accent); color: #0b0d12; border: none; border-radius: 8px; padding: 10px 14px; cursor: pointer; font-weight: 700; }
+button:hover { filter: brightness(1.05); }
+.choice { display: block; margin: 8px 0; width: 100%; text-align: left; }
+.story-choice { background: #233041; color: var(--text); border: 1px solid #2f3d52; }
+#typing { display: flex; flex-direction: column; gap: 10px; }
+#typing .lesson-story { padding: 10px; border: 1px solid #222834; border-radius: 10px; background: #101521; }
+#typing .lesson-line { margin: 6px 0; color: var(--muted); }
+#typing .lesson-choices { display: grid; gap: 8px; }
+#typing .lesson-meta { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+#typing .lesson-meta .tag { background: #142032; }
+#stats { display: flex; gap: 10px; font-size: 14px; color: var(--muted); }
+#log { min-height: 60px; font-size: 14px; color: var(--muted); white-space: pre-line; }
+#typing input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #222; background: #10131a; color: var(--text); }
+#battle { display: none; }
+#shop { display: none; }
+.tag { padding: 4px 8px; border-radius: 6px; background: #101521; margin-right: 6px; }
