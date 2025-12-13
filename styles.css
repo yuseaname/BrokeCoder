@@ -23,12 +23,12 @@ body {
   color: var(--text);
   background: linear-gradient(150deg, var(--bg-top) 0%, var(--bg-bottom) 70%), var(--noise);
   background-attachment: fixed;
-  overflow: hidden;
+  overflow-y: auto;
 }
 
 .screen {
-  position: fixed;
-  inset: 0;
+  position: relative;
+  min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -998,4 +998,55 @@ body {
   .hud-row { grid-template-columns: 1fr; }
   .mode-tabs { flex-wrap: wrap; }
   .location-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+}
+
+/* Music Player */
+.music-player {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: rgba(12, 16, 28, 0.95);
+  border: 2px solid rgba(54, 241, 205, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  z-index: 1000;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+}
+
+.music-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(54, 241, 205, 0.1);
+  color: var(--accent);
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.music-btn:hover {
+  background: rgba(54, 241, 205, 0.2);
+  transform: scale(1.05);
+}
+
+.music-btn:active {
+  transform: scale(0.95);
+}
+
+.music-info {
+  color: var(--muted);
+  font-size: 13px;
+  min-width: 120px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
