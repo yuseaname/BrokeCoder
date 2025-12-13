@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BrokeCoder</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>" />
+  <link rel="stylesheet" href="./styles.css?v=5" />
+</head>
+<body>
+  <div id="loading-screen" class="screen hidden" aria-live="polite">
+    <div class="loading-content">
+      <div class="loading-title">Loading BrokeCoder...</div>
+      <div class="loading-bar" role="presentation">
+        <span id="loading-progress"></span>
+      </div>
+      <div class="loading-hint">Preparing character art…</div>
+    </div>
+  </div>
+
+  <div id="title-screen" class="screen">
+    <div class="title-layout">
+      <div class="title-content">
+        <div class="logo">
+          <div class="logo-kicker">Season 1 · Phone Era</div>
+          <div class="logo-word">BROKE<span>CODER</span></div>
+          <div class="subtitle">A typing RPG about surviving the digital jungle.</div>
+        </div>
+        <div class="hero-blurb">
+          Small phone screen. Giant LA night. Neon grit, raccoon bosses, and thumb-crushing typing drills.
+        </div>
+        <div id="menu" class="menu" role="menu" aria-label="Main menu">
+          <button class="menu-item" data-action="new" role="menuitem">New Game</button>
+          <button class="menu-item" data-action="continue" role="menuitem">Continue</button>
+          <button class="menu-item" data-action="options" role="menuitem">Options</button>
+          <button class="menu-item" data-action="roster" role="menuitem">Character Roster</button>
+          <button class="menu-item" data-action="credits" role="menuitem">Credits</button>
+          <button class="menu-item" data-action="quit" role="menuitem">Quit</button>
+        </div>
+        <div class="footer">Dark LA night · Neon grit · Typing to survive</div>
+      </div>
+      <div class="title-hero" aria-hidden="true">
+        <div class="hero-card">
+          <div class="hero-image"></div>
+          <div class="hero-caption">Venice Blvd // Phone Era</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="game-screen" class="screen hidden" aria-live="polite">
+    <div class="game-stage">
+      <div class="season-pill">Season 1 · The Phone Era</div>
+      <div class="hud-row">
+        <div id="player-hud" class="player-hud" aria-live="polite"></div>
+        <div id="resource-hud" class="resource-hud" aria-live="polite"></div>
+      </div>
+      <div class="mode-tabs" role="tablist" aria-label="Game modes">
+        <button class="mode-tab active" data-mode="story" role="tab">Story</button>
+        <button class="mode-tab" data-mode="city" role="tab">City</button>
+        <button class="mode-tab" data-mode="shop" role="tab">Shop</button>
+        <button class="mode-tab" data-mode="inventory" role="tab">Inventory</button>
+      </div>
+      <div id="status-banner" class="status-banner" aria-live="polite"></div>
+
+      <div id="story-panel" class="panel-block">
+        <div class="panel-header">
+          <div class="panel-kicker">Story Mode</div>
+          <h3>Season Journal</h3>
+        </div>
+        <div id="game-placeholder" class="game-placeholder">Welcome to BrokeCoder. Season 1: The Phone Era begins…</div>
+        <div id="chapter-progress" class="chapter-progress"></div>
+      </div>
+
+      <div id="city-panel" class="panel-block hidden">
+        <div class="panel-header">
+          <div class="panel-kicker">City Grid</div>
+          <h3>LA Text Streets</h3>
+        </div>
+        <div class="panel-meta">Pick a location to uncover missions and gigs.</div>
+        <div id="location-list" class="location-grid"></div>
+        <div id="mission-list" class="mission-list"></div>
+      </div>
+
+      <div id="shop-panel" class="panel-block hidden">
+        <div class="panel-header">
+          <div class="panel-kicker">Shop</div>
+          <h3>Upgrade &amp; Supplies</h3>
+        </div>
+        <div id="shop-list" class="shop-grid"></div>
+      </div>
+
+      <div id="inventory-panel" class="panel-block hidden">
+        <div class="panel-header">
+          <div class="panel-kicker">Inventory</div>
+          <h3>Bag &amp; Gear</h3>
+        </div>
+        <div id="inventory-list" class="inventory-grid"></div>
+      </div>
+
+      <div id="quest-log-panel" class="panel-block">
+        <div class="panel-header">
+          <div class="panel-kicker">Quest Log</div>
+          <h3>Objectives &amp; Gigs</h3>
+        </div>
+        <div id="quest-log-list" class="quest-log"></div>
+      </div>
+    </div>
+
+    <div id="dialogue-container" class="dialogue-container hidden" aria-live="polite">
+      <button id="dialogue-close" class="dialogue-close" aria-label="Close dialogue">✕</button>
+      <img id="dialogue-portrait" alt="Character portrait" />
+      <div class="dialogue-body">
+        <div id="dialogue-text"></div>
+        <div id="dialogue-choices" class="choices"></div>
+      </div>
+    </div>
+
+    <div id="lesson-overlay" class="lesson-overlay hidden" aria-live="polite" role="dialog" aria-modal="true">
+      <div class="lesson-card">
+        <div class="lesson-header">
+          <div>
+            <div class="lesson-kicker">Typing Lesson</div>
+            <div id="lesson-title" class="lesson-title"></div>
+          </div>
+          <button id="lesson-exit" class="ghost-btn" aria-label="Skip lesson">Skip</button>
+        </div>
+        <div id="lesson-description" class="lesson-description"></div>
+        <pre id="lesson-script" class="lesson-script"></pre>
+        <div class="lesson-input-row">
+          <input id="lesson-input" type="text" autocomplete="off" spellcheck="false" placeholder="Type exactly what you see…" />
+          <button id="lesson-submit" class="primary-btn">Submit</button>
+        </div>
+        <div class="lesson-meta">
+          <div class="lesson-progress">
+            <div id="lesson-progress-bar"></div>
+          </div>
+          <div id="lesson-reward" class="lesson-reward"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="background-music" loop>
+    <source src="" type="audio/mpeg">
+  </audio>
+
+  <div id="music-player" class="music-player">
+    <button id="music-prev" class="music-btn" title="Previous track">⏮</button>
+    <button id="music-toggle" class="music-btn" title="Play/Pause">▶</button>
+    <button id="music-next" class="music-btn" title="Next track">⏭</button>
+    <div id="music-info" class="music-info">No music</div>
+  </div>
+
+  <div id="overlay" class="overlay hidden" aria-live="polite">
+    <div id="options-panel" class="panel hidden" role="dialog" aria-modal="true">
+      <h2>Options</h2>
+      <label class="field">Volume
+        <input type="range" min="0" max="100" value="60" />
+      </label>
+      <fieldset class="field">
+        <legend>Text speed</legend>
+        <label><input type="radio" name="text-speed" value="slow" /> Slow</label>
+        <label><input type="radio" name="text-speed" value="normal" checked /> Normal</label>
+        <label><input type="radio" name="text-speed" value="fast" /> Fast</label>
+      </fieldset>
+      <button class="panel-close" data-close="options">Back</button>
+    </div>
+
+    <div id="credits-panel" class="panel hidden" role="dialog" aria-modal="true">
+      <h2>Credits</h2>
+      <p>BrokeCoder – Created by Your Name.</p>
+      <p>Writing: Season 1 &amp; 2 story.</p>
+      <p>Code &amp; Design: In progress.</p>
+      <button class="panel-close" data-close="credits">Back</button>
+    </div>
+
+    <div id="quit-panel" class="panel hidden" role="dialog" aria-modal="true">
+      <h2>Nice try.</h2>
+      <p>You can’t quit real life that easily. Close the tab if you really must.</p>
+      <button class="panel-close" data-close="quit">Back</button>
+    </div>
+
+    <div id="roster-panel" class="panel hidden" role="dialog" aria-modal="true">
+      <h2>Character Roster</h2>
+      <div id="roster-description">Every portrait below is loaded from media/characters.</div>
+      <div id="character-roster" class="roster-grid"></div>
+      <button class="panel-close" data-close="roster">Back</button>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js?v=5"></script>
+</body>
+</html>

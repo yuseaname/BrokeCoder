@@ -1,4 +1,4 @@
-import { GEAR_LIBRARY } from "./gameContent.js";
+import { GEAR_LIBRARY, RESOURCE_CONFIG } from "./gameContent.js";
 import { QUESTS, buildQuestIndex } from "./questData.js";
 
 const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
@@ -11,6 +11,24 @@ const RESOURCE_KEY_MAP = {
   physical: "physicalEnergy",
   physicalEnergy: "physicalEnergy",
 };
+
+function normalizeResourceKey(key) {
+  return RESOURCE_KEY_MAP[key] || key;
+}
+
+function ensurePlayerResourceShape(player) {
+  if (!player) return;
+  player.resources = player.resources || {};
+  Object.values(RESOURCE_CONFIG).forEach((cfg) => {
+    const normalized = normalizeResourceKey(cfg.id);
+    const current = player.resources[normalized] || {};
+    const max = typeof current.max === "number" ? current.max : cfg.max ?? 10;
+    player.resources[normalized] = {
+      current: typeof current.current === "number" ? current.current : max,
+      max,
+    };
+  });
+}
 
 const defaultQuestState = () => ({
   active: {}, // questId -> { stepId, stepIndex }
@@ -30,10 +48,6 @@ function stepById(quest, stepId) {
   if (!quest) return null;
   if (!stepId) return quest.steps?.[0] || null;
   return quest.steps?.find((s) => s.id === stepId) || null;
-}
-
-function normalizeResourceKey(key) {
-  return RESOURCE_KEY_MAP[key] || key;
 }
 
 function getResourceBar(player, key) {
@@ -118,6 +132,10 @@ export function createQuestManager(getState) {
     if (!state.player) state.player = {};
     if (!state.player.flags) state.player.flags = {};
     if (!state.player.quests) state.player.quests = defaultQuestState();
+    if (!state.player.phoneEnergy || typeof state.player.phoneEnergy.max !== "number") {
+      state.player.phoneEnergy = { current: state.player.phoneEnergy?.current ?? 10, max: 10 };
+    }
+    ensurePlayerResourceShape(state.player);
     state.player.quests.active = state.player.quests.active || {};
     state.player.quests.completed = state.player.quests.completed || [];
     state.player.quests.failed = state.player.quests.failed || [];
@@ -139,34 +157,83 @@ export function createQuestManager(getState) {
     return qState.failed.includes(id);
   }
 
-  function prerequisitesMet(quest) {
+  function canStartMission(questInput) {
     const state = getState();
     ensureQuestState(state);
+    const quest = typeof questInput === "string" ? index.get(questInput) : questInput;
+    if (!quest) return { ok: false, reasons: ["Quest not found"], quest: null };
     const qState = state.player.quests;
+    const reasons = [];
     const prereq = quest.prerequisites || {};
-    if (isLocked(quest.id, qState)) return false;
-    if (hasFailed(quest.id, qState) && !quest.repeatable) return false;
-    if (!quest.repeatable && hasCompleted(quest.id, qState)) return false;
-    if (prereq.completedQuests?.some((q) => !qState.completed.includes(q))) return false;
-    if (prereq.requiredItems?.some((id) => !state.player.inventory?.some((it) => it.id === id))) return false;
+    const phoneEnergy = state.player.phoneEnergy || { current: 0, max: 10 };
+    const required = {
+      minEnergy: Number(prereq.minEnergy || 0),
+      minResources: { ...(prereq.minResources || {}) },
+    };
+    const current = {
+      phoneEnergy: Number(phoneEnergy.current ?? 0),
+      resources: {},
+    };
+
+    Object.values(RESOURCE_KEY_MAP).forEach((alias) => {
+      const bar = getResourceBar(state.player, alias);
+      if (bar) current.resources[normalizeResourceKey(alias)] = bar.current ?? 0;
+    });
+
+    if (isLocked(quest.id, qState)) reasons.push("Locked by story");
+    if (hasFailed(quest.id, qState) && !quest.repeatable) reasons.push("Previously failed and not repeatable");
+    if (!quest.repeatable && hasCompleted(quest.id, qState)) reasons.push("Already completed");
+
+    const missingCompleted = prereq.completedQuests?.filter((q) => !qState.completed.includes(q)) || [];
+    if (missingCompleted.length) reasons.push(`Requires: ${missingCompleted.join(", ")}`);
+
+    const missingItems =
+      prereq.requiredItems?.filter((id) => !state.player.inventory?.some((it) => it.id === id && (it.qty || 1) > 0)) ||
+      [];
+    if (missingItems.length) reasons.push(`Missing items: ${missingItems.join(", ")}`);
+
     if (prereq.requiredStats) {
       const stats = state.player.stats || {};
-      if (Object.entries(prereq.requiredStats).some(([key, val]) => (stats[key] || 0) < val)) return false;
+      Object.entries(prereq.requiredStats).forEach(([key, val]) => {
+        const have = Number(stats[key] || 0);
+        const need = Number(val || 0);
+        if (have < need) reasons.push(`Need ${key} ${need}, you have ${have}`);
+      });
     }
+
     if (prereq.requiredFlags) {
       const flags = state.player.flags || {};
-      const missingFlag = Object.entries(prereq.requiredFlags).some(([key, expected]) => flags[key] !== expected);
-      if (missingFlag) return false;
-    }
-    if (prereq.minResources) {
-      const lacksResource = Object.entries(prereq.minResources).some(([key, val]) => {
-        const bar = getResourceBar(state.player, key);
-        return !bar || bar.current < val;
+      Object.entries(prereq.requiredFlags).forEach(([key, expected]) => {
+        if (flags[key] !== expected) reasons.push(`Requires flag ${key}=${expected}`);
       });
-      if (lacksResource) return false;
     }
-    if (prereq.minEnergy && (state.player.phoneEnergy?.current || 0) < prereq.minEnergy) return false;
-    return true;
+
+    Object.entries(prereq.minResources || {}).forEach(([key, val]) => {
+      const bar = getResourceBar(state.player, key);
+      const need = Number(val || 0);
+      const have = bar?.current ?? 0;
+      if (have < need) reasons.push(`Need ${resourceLabel(key)} ${need}, you have ${have}`);
+      required.minResources[normalizeResourceKey(key)] = need;
+      current.resources[normalizeResourceKey(key)] = have;
+    });
+
+    if (prereq.minEnergy) {
+      const have = state.player.phoneEnergy?.current ?? 0;
+      const need = Number(prereq.minEnergy || 0);
+      if (have < need) reasons.push(`Need Phone Energy ${need}, you have ${have}`);
+      required.minEnergy = need;
+      current.phoneEnergy = have;
+    }
+
+    console.debug("[CanStartMission]", {
+      questId: quest.id,
+      ok: reasons.length === 0,
+      reasons,
+      required,
+      current,
+    });
+
+    return { ok: reasons.length === 0, reasons, required, current, quest };
   }
 
   function getAvailableQuests(locationId) {
@@ -174,7 +241,7 @@ export function createQuestManager(getState) {
     ensureQuestState(state);
     return QUESTS.filter((quest) => {
       const locationOk = !locationId || quest.locationId === locationId;
-      return locationOk && prerequisitesMet(quest);
+      return locationOk && canStartMission(quest).ok;
     });
   }
 
@@ -183,16 +250,17 @@ export function createQuestManager(getState) {
     ensureQuestState(state);
     const quest = index.get(id);
     if (!quest) return null;
+    const gating = canStartMission(quest);
     const status = hasCompleted(id, state.player.quests)
       ? "completed"
       : state.player.quests.active[id]
         ? "active"
         : hasFailed(id, state.player.quests)
           ? "failed"
-          : prerequisitesMet(quest)
+          : gating.ok
             ? "available"
-            : "locked";
-    return { quest, status };
+            : "blocked";
+    return { quest, status, reasons: gating.reasons, gating };
   }
 
   function getQuestsForLocation(locationId) {
@@ -200,14 +268,17 @@ export function createQuestManager(getState) {
     ensureQuestState(state);
     const list = QUESTS.filter((q) => q.locationId === locationId);
     return list.map((quest) => {
+      const gating = canStartMission(quest);
       const status = hasCompleted(quest.id, state.player.quests)
         ? "completed"
         : state.player.quests.active[quest.id]
           ? "active"
-          : prerequisitesMet(quest)
-            ? "available"
-            : "locked";
-      return { quest, status, activeStepId: getActiveStepId(state, quest.id) };
+          : hasFailed(quest.id, state.player.quests) && !quest.repeatable
+            ? "failed"
+            : gating.ok
+              ? "available"
+            : "blocked";
+      return { quest, status, activeStepId: getActiveStepId(state, quest.id), gating };
     });
   }
 
@@ -216,7 +287,16 @@ export function createQuestManager(getState) {
     const qState = ensureQuestState(state);
     const quest = index.get(id);
     if (!quest) return { ok: false, reason: "Quest not found" };
-    if (!prerequisitesMet(quest)) return { ok: false, reason: "Prerequisites not met" };
+    const canStart = canStartMission(quest);
+    if (!canStart.ok) {
+      console.warn("[QuestManager] startQuest blocked", {
+        questId: id,
+        reasons: canStart.reasons,
+        current: canStart.current,
+        required: canStart.required,
+      });
+      return { ok: false, reason: canStart.reasons.join("; ") || "Prerequisites not met" };
+    }
     qState.active[id] = { stepId: quest.steps?.[0]?.id || null, stepIndex: 0 };
     return { ok: true, quest, step: quest.steps?.[0] };
   }
@@ -334,6 +414,7 @@ export function createQuestManager(getState) {
 
   function evaluateChoice(questId, choiceId, randomFn = Math.random) {
     const state = getState();
+    ensureQuestState(state);
     const quest = index.get(questId);
     if (!quest) return { ok: false, reason: "Quest missing" };
     const step = stepById(quest, getActiveStepId(state, questId));
@@ -341,6 +422,7 @@ export function createQuestManager(getState) {
     const choice = step.choices?.find((c) => c.id === choiceId);
     if (!choice) return { ok: false, reason: "Choice missing" };
     const player = state.player || {};
+    ensurePlayerResourceShape(player);
 
     if (choice.requiresFlag && player.flags?.[choice.requiresFlag] !== true) {
       return { ok: false, reason: "Requirement not met" };
@@ -386,6 +468,7 @@ export function createQuestManager(getState) {
 
   function payCost(cost = {}) {
     const state = getState();
+    ensureQuestState(state);
     const player = state.player || {};
     if (cost.energy) {
       player.phoneEnergy = player.phoneEnergy || { current: 0, max: 10 };
@@ -509,5 +592,6 @@ export function createQuestManager(getState) {
     advanceQuest,
     evaluateChoice,
     markComplete,
+    canStartMission,
   };
 }

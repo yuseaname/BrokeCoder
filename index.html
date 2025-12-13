@@ -4,7 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BrokeCoder</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>" />
+  <link rel="stylesheet" href="./styles.css?v=7" />
 </head>
 <body>
   <div id="loading-screen" class="screen hidden" aria-live="polite">
@@ -114,6 +115,7 @@
         <div id="dialogue-choices" class="choices"></div>
       </div>
     </div>
+    <button id="dialogue-reopen" class="dialogue-reopen hidden" aria-label="Reopen dialogue">Reopen dialogue</button>
 
     <div id="lesson-overlay" class="lesson-overlay hidden" aria-live="polite" role="dialog" aria-modal="true">
       <div class="lesson-card">
@@ -141,7 +143,7 @@
   </div>
 
   <audio id="background-music" loop>
-    <source src="" type="audio/wav">
+    <source src="" type="audio/mpeg">
   </audio>
 
   <div id="music-player" class="music-player">
@@ -188,6 +190,6 @@
     </div>
   </div>
 
-  <script type="module" src="main.js"></script>
+  <script type="module" src="./main.js?v=7"></script>
 </body>
 </html>

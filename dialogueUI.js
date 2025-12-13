@@ -7,8 +7,34 @@ const getNodes = () => ({
   choices: document.getElementById("dialogue-choices"),
 });
 
+let lastDialogue = null;
+let reopenWired = false;
+let backdropClickHandler = null;
+
+function getReopenButton() {
+  return document.getElementById("dialogue-reopen");
+}
+
+function setReopenVisible(visible) {
+  const btn = getReopenButton();
+  if (!btn) return;
+  btn.classList.toggle("hidden", !visible);
+}
+
+function wireReopenButton() {
+  if (reopenWired) return;
+  const btn = getReopenButton();
+  if (!btn) return;
+  btn.addEventListener("click", () => restoreDialogue());
+  reopenWired = true;
+}
+
 export function showDialogue(characterId, text, choices = []) {
   console.log("[DialogueUI] showDialogue called with:", characterId, text, choices);
+  wireReopenButton();
+  lastDialogue = { characterId, text, choices };
+  setReopenVisible(false);
+
   const nodes = getNodes();
   console.log("[DialogueUI] nodes:", nodes);
   if (!nodes.container || !nodes.text || !nodes.choices) {
@@ -56,17 +82,19 @@ export function showDialogue(characterId, text, choices = []) {
   // Add close button handler
   const closeBtn = document.getElementById("dialogue-close");
   if (closeBtn) {
-    closeBtn.onclick = () => hideDialogue();
+    closeBtn.onclick = () => minimizeDialogue();
   }
 
   // Add backdrop click handler
-  const handleBackdropClick = (e) => {
+  if (backdropClickHandler) {
+    nodes.container.removeEventListener("click", backdropClickHandler);
+  }
+  backdropClickHandler = (e) => {
     if (e.target === nodes.container) {
-      hideDialogue();
-      nodes.container.removeEventListener("click", handleBackdropClick);
+      minimizeDialogue();
     }
   };
-  nodes.container.addEventListener("click", handleBackdropClick);
+  nodes.container.addEventListener("click", backdropClickHandler);
 
   console.log("[DialogueUI] removing hidden class from container");
   nodes.container.classList.remove("hidden");
@@ -87,8 +115,22 @@ export function showDialogue(characterId, text, choices = []) {
 }
 
 export function hideDialogue() {
+  lastDialogue = null;
+  setReopenVisible(false);
   const { container } = getNodes();
   container?.classList.add("hidden");
+}
+
+export function minimizeDialogue() {
+  const { container } = getNodes();
+  container?.classList.add("hidden");
+  setReopenVisible(Boolean(lastDialogue));
+}
+
+export function restoreDialogue() {
+  if (!lastDialogue) return;
+  const { characterId, text, choices } = lastDialogue;
+  showDialogue(characterId, text, choices);
 }
 
 export function isDialogueVisible() {

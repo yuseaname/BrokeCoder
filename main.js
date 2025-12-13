@@ -7,7 +7,7 @@ import {
   preloadImages,
   resolveMainImage,
 } from "./assets.js";
-import { showDialogue, hideDialogue } from "./dialogueUI.js";
+import { showDialogue, hideDialogue } from "./dialogueUI.js?v=7";
 import { STORY, STORY_SEASONS, STORY_START } from "./storyData.js";
 import { startLesson, hideLessonOverlay } from "./lessons.js";
 import {
@@ -69,10 +69,10 @@ const FALLBACK_HERO_IMAGE = GAME_MAIN_IMAGE || "./media/game/brokecodermain.png"
 const SAVE_KEY = "brokecoder_save_v2";
 
 const SOUNDTRACKS = [
-  "./media/soundtrack/Borderline Dreamer.wav",
-  "./media/soundtrack/Code Activation.wav",
-  "./media/soundtrack/Molotov Heartbeat.wav",
-  "./media/soundtrack/Tear It Down.wav"
+  "./media/soundtrack/Borderline Dreamer.mp3",
+  "./media/soundtrack/Code Activation.mp3",
+  "./media/soundtrack/Molotov Heartbeat.mp3",
+  "./media/soundtrack/Tear It Down.mp3"
 ];
 
 let heroImagePath = FALLBACK_HERO_IMAGE;
@@ -122,6 +122,59 @@ function startMusic() {
   }
 }
 
+function wireMusicPlayer() {
+  const toggleBtn = document.getElementById("music-toggle");
+  const prevBtn = document.getElementById("music-prev");
+  const nextBtn = document.getElementById("music-next");
+  const infoDiv = document.getElementById("music-info");
+
+  if (toggleBtn) {
+    toggleBtn.addEventListener("click", () => {
+      toggleMusic();
+      updateMusicUI();
+    });
+  }
+
+  if (prevBtn) {
+    prevBtn.addEventListener("click", () => {
+      currentTrackIndex = (currentTrackIndex - 1 + SOUNDTRACKS.length) % SOUNDTRACKS.length;
+      playTrack(currentTrackIndex);
+      updateMusicUI();
+    });
+  }
+
+  if (nextBtn) {
+    nextBtn.addEventListener("click", () => {
+      currentTrackIndex = (currentTrackIndex + 1) % SOUNDTRACKS.length;
+      playTrack(currentTrackIndex);
+      updateMusicUI();
+    });
+  }
+
+  if (backgroundMusic) {
+    backgroundMusic.addEventListener("play", updateMusicUI);
+    backgroundMusic.addEventListener("pause", updateMusicUI);
+  }
+}
+
+function updateMusicUI() {
+  const toggleBtn = document.getElementById("music-toggle");
+  const infoDiv = document.getElementById("music-info");
+
+  if (toggleBtn && backgroundMusic) {
+    toggleBtn.textContent = backgroundMusic.paused ? "▶" : "⏸";
+  }
+
+  if (infoDiv) {
+    if (backgroundMusic && backgroundMusic.src) {
+      const trackName = SOUNDTRACKS[currentTrackIndex].split("/").pop().replace(".mp3", "");
+      infoDiv.textContent = trackName;
+    } else {
+      infoDiv.textContent = "No music";
+    }
+  }
+}
+
 function createDefaultState() {
   return {
     saveVersion: 3,
@@ -144,9 +197,9 @@ function createDefaultState() {
       quests: defaultQuestState(),
       stats: { ...BASE_STATS },
       resources: {
-        focusEnergy: { current: START_RESOURCES.focusEnergy, max: RESOURCE_CONFIG.focusEnergy.max },
-        nerveEnergy: { current: START_RESOURCES.nerveEnergy, max: RESOURCE_CONFIG.nerveEnergy.max },
-        physicalEnergy: { current: START_RESOURCES.physicalEnergy, max: RESOURCE_CONFIG.physicalEnergy.max },
+        focusEnergy: { current: START_RESOURCES.focusEnergy, max: RESOURCE_CONFIG?.focusEnergy?.max || 10 },
+        nerveEnergy: { current: START_RESOURCES.nerveEnergy, max: RESOURCE_CONFIG?.nerveEnergy?.max || 8 },
+        physicalEnergy: { current: START_RESOURCES.physicalEnergy, max: RESOURCE_CONFIG?.physicalEnergy?.max || 10 },
       },
       gear: { device: "cracked_phone", vehicle: null },
       gearOwned: ["cracked_phone"],
@@ -185,6 +238,9 @@ function unlockedSeasons() {
 }
 
 function normalizeResources(res = {}) {
+  const baseFocusMax = RESOURCE_CONFIG?.focusEnergy?.max ?? 10;
+  const baseNerveMax = RESOURCE_CONFIG?.nerveEnergy?.max ?? 8;
+  const basePhysicalMax = RESOURCE_CONFIG?.physicalEnergy?.max ?? 10;
   return {
     focusEnergy: {
       current:
@@ -193,7 +249,7 @@ function normalizeResources(res = {}) {
         res.focus?.current ??
         res.focus ??
         START_RESOURCES.focusEnergy,
-      max: res.focusEnergy?.max ?? res.focus?.max ?? RESOURCE_CONFIG.focusEnergy.max,
+      max: res.focusEnergy?.max ?? res.focus?.max ?? baseFocusMax,
     },
     nerveEnergy: {
       current:
@@ -202,7 +258,7 @@ function normalizeResources(res = {}) {
         res.nerve?.current ??
         res.nerve ??
         START_RESOURCES.nerveEnergy,
-      max: res.nerveEnergy?.max ?? res.nerve?.max ?? RESOURCE_CONFIG.nerveEnergy.max,
+      max: res.nerveEnergy?.max ?? res.nerve?.max ?? baseNerveMax,
     },
     physicalEnergy: {
       current:
@@ -211,7 +267,7 @@ function normalizeResources(res = {}) {
         res.physical?.current ??
         res.physical ??
         START_RESOURCES.physicalEnergy,
-      max: res.physicalEnergy?.max ?? res.physical?.max ?? RESOURCE_CONFIG.physicalEnergy.max,
+      max: res.physicalEnergy?.max ?? res.physical?.max ?? basePhysicalMax,
     },
   };
 }
@@ -247,12 +303,36 @@ function hydrateState(raw) {
 function recalcResourceCaps() {
   const { player } = gameState;
   if (!player?.resources) return;
-  player.resources.focusEnergy.max = RESOURCE_CONFIG.focusEnergy.max + (player.stats.focus - 1);
-  player.resources.nerveEnergy.max =
-    RESOURCE_CONFIG.nerveEnergy.max + Math.floor((player.stats.streetsmarts - 1) / 1.5);
-  player.resources.physicalEnergy.max = RESOURCE_CONFIG.physicalEnergy.max + (player.stats.fitness - 1);
+  if (!player.stats) player.stats = { ...BASE_STATS };
+
+  const baseFocusMax = RESOURCE_CONFIG?.focusEnergy?.max ?? 10;
+  const baseNerveMax = RESOURCE_CONFIG?.nerveEnergy?.max ?? 8;
+  const basePhysicalMax = RESOURCE_CONFIG?.physicalEnergy?.max ?? 10;
+  
+  // Ensure all resources exist with proper structure
+  if (!player.resources.focusEnergy || typeof player.resources.focusEnergy !== 'object') {
+    player.resources.focusEnergy = { current: START_RESOURCES.focusEnergy, max: baseFocusMax };
+  }
+  if (!player.resources.nerveEnergy || typeof player.resources.nerveEnergy !== 'object') {
+    player.resources.nerveEnergy = { current: START_RESOURCES.nerveEnergy, max: baseNerveMax };
+  }
+  if (!player.resources.physicalEnergy || typeof player.resources.physicalEnergy !== 'object') {
+    player.resources.physicalEnergy = { current: START_RESOURCES.physicalEnergy, max: basePhysicalMax };
+  }
+  
+  // Ensure stats have default values
+  const focus = player.stats.focus || BASE_STATS.focus || 1;
+  const streetsmarts = player.stats.streetsmarts || BASE_STATS.streetsmarts || 1;
+  const fitness = player.stats.fitness || BASE_STATS.fitness || 1;
+  
+  player.resources.focusEnergy.max = baseFocusMax + (focus - 1);
+  player.resources.nerveEnergy.max = baseNerveMax + Math.floor((streetsmarts - 1) / 1.5);
+  player.resources.physicalEnergy.max = basePhysicalMax + (fitness - 1);
+  
   Object.values(player.resources).forEach((res) => {
-    res.current = clamp(res.current, 0, res.max);
+    if (res && typeof res.current === 'number' && typeof res.max === 'number') {
+      res.current = clamp(res.current, 0, res.max);
+    }
   });
 }
 
@@ -1116,6 +1196,7 @@ function handleQuestChoice(questId, choice) {
   };
 
   if (choice.lessonId) {
+    hideDialogue();
     startLesson(choice.lessonId, {
       onComplete: () => finish(),
       onCancel: () => setStatus("Lesson cancelled."),
@@ -1439,6 +1520,7 @@ async function init() {
   console.log("[BrokeCoder] selectors.menuItems:", selectors.menuItems);
   console.log("[BrokeCoder] menuItems count:", selectors.menuItems.length);
   initMusic();
+  wireMusicPlayer();
   renderHud();
   wireMenuClicks();
   console.log("[BrokeCoder] init() after wireMenuClicks");

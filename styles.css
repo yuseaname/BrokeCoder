@@ -173,7 +173,7 @@ body {
   letter-spacing: 0.5px;
 }
 
-.hidden { display: none !important; }
+.hidden { display: none !important; pointer-events: none !important; }
 
 #game-screen {
   background:
@@ -642,10 +642,13 @@ body {
   justify-content: center;
   background: radial-gradient(circle at 20% 20%, rgba(77, 224, 217, 0.05), rgba(0,0,0,0.75));
   padding: 24px;
+  z-index: 200;
 }
 
 .panel {
   width: min(460px, 90vw);
+  max-height: 85vh;
+  overflow-y: auto;
   background: var(--panel);
   border-radius: 14px;
   padding: 20px;
@@ -773,6 +776,31 @@ body {
 .dialogue-close:hover {
   background: rgba(255, 95, 175, 0.2);
   transform: scale(1.1);
+}
+
+.dialogue-reopen {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  z-index: 1001;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  border: 1px solid rgba(54, 241, 205, 0.45);
+  color: var(--text);
+  background: rgba(10, 12, 18, 0.92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(54, 241, 205, 0.12);
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.dialogue-reopen:hover,
+.dialogue-reopen:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--focus), 0 16px 40px rgba(0, 0, 0, 0.55);
+  outline: none;
 }
 
 #dialogue-portrait {
@@ -1012,7 +1040,7 @@ body {
   display: flex;
   gap: 10px;
   align-items: center;
-  z-index: 1000;
+  z-index: 100;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
 }
