@@ -98,12 +98,43 @@ function initMusic() {
       playTrack(currentTrackIndex);
     });
   }
+
+  // Wire up music controls
+  const toggleBtn = document.getElementById("music-toggle");
+  const prevBtn = document.getElementById("music-prev");
+  const nextBtn = document.getElementById("music-next");
+
+  if (toggleBtn) {
+    toggleBtn.onclick = toggleMusic;
+  }
+  if (prevBtn) {
+    prevBtn.onclick = () => {
+      currentTrackIndex = (currentTrackIndex - 1 + SOUNDTRACKS.length) % SOUNDTRACKS.length;
+      playTrack(currentTrackIndex);
+    };
+  }
+  if (nextBtn) {
+    nextBtn.onclick = () => {
+      currentTrackIndex = (currentTrackIndex + 1) % SOUNDTRACKS.length;
+      playTrack(currentTrackIndex);
+    };
+  }
 }
 
 function playTrack(index) {
   if (!backgroundMusic) return;
   backgroundMusic.src = SOUNDTRACKS[index];
   backgroundMusic.play().catch(err => console.log("Music autoplay blocked:", err));
+  
+  // Update music info display
+  const musicInfo = document.getElementById("music-info");
+  if (musicInfo) {
+    const trackName = SOUNDTRACKS[index].split("/").pop().replace(".wav", "");
+    musicInfo.textContent = trackName;
+  }
+  
+  // Update play/pause button
+  updatePlayButton();
 }
 
 function toggleMusic() {
@@ -112,6 +143,15 @@ function toggleMusic() {
     backgroundMusic.play();
   } else {
     backgroundMusic.pause();
+  }
+  updatePlayButton();
+}
+
+function updatePlayButton() {
+  const toggleBtn = document.getElementById("music-toggle");
+  if (toggleBtn && backgroundMusic) {
+    toggleBtn.textContent = backgroundMusic.paused ? "▶" : "⏸";
+    toggleBtn.title = backgroundMusic.paused ? "Play" : "Pause";
   }
 }
 

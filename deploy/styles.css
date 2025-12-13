@@ -728,6 +728,54 @@ body {
   transform: scale(1.1);
 }
 
+.music-player {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: rgba(10, 12, 18, 0.9);
+  border: 1px solid rgba(54, 241, 205, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
+  z-index: 900;
+}
+
+.music-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background: rgba(54, 241, 205, 0.1);
+  color: var(--accent);
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.music-btn:hover {
+  background: rgba(54, 241, 205, 0.2);
+  transform: scale(1.05);
+}
+
+.music-btn:active {
+  transform: scale(0.95);
+}
+
+.music-info {
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 150px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 #dialogue-portrait {
   width: 86px;
   height: 86px;
