@@ -67,16 +67,59 @@ const defaultQuestState = () => ({
 });
 const FALLBACK_HERO_IMAGE = GAME_MAIN_IMAGE || "./media/game/brokecodermain.png";
 const SAVE_KEY = "brokecoder_save_v2";
+
+const SOUNDTRACKS = [
+  "./media/soundtrack/Borderline Dreamer.wav",
+  "./media/soundtrack/Code Activation.wav",
+  "./media/soundtrack/Molotov Heartbeat.wav",
+  "./media/soundtrack/Tear It Down.wav"
+];
+
 let heroImagePath = FALLBACK_HERO_IMAGE;
 let focusedIndex = 0;
 let resourceTicker = null;
 let gameState = createDefaultState();
 let questManager = createQuestManager(() => gameState);
+let backgroundMusic = null;
+let currentTrackIndex = 0;
 syncQuestState();
 
 function syncQuestState() {
   questManager.ensureQuestState(gameState);
   questManager.validateGraph();
+}
+
+function initMusic() {
+  backgroundMusic = document.getElementById("background-music");
+  if (backgroundMusic) {
+    backgroundMusic.volume = 0.3;
+    backgroundMusic.addEventListener("ended", () => {
+      currentTrackIndex = (currentTrackIndex + 1) % SOUNDTRACKS.length;
+      playTrack(currentTrackIndex);
+    });
+  }
+}
+
+function playTrack(index) {
+  if (!backgroundMusic) return;
+  backgroundMusic.src = SOUNDTRACKS[index];
+  backgroundMusic.play().catch(err => console.log("Music autoplay blocked:", err));
+}
+
+function toggleMusic() {
+  if (!backgroundMusic) return;
+  if (backgroundMusic.paused) {
+    backgroundMusic.play();
+  } else {
+    backgroundMusic.pause();
+  }
+}
+
+function startMusic() {
+  if (!backgroundMusic) return;
+  if (backgroundMusic.paused) {
+    playTrack(0);
+  }
 }
 
 function createDefaultState() {
@@ -1358,6 +1401,7 @@ async function startNewGameFlow() {
   await sleep(120);
   updateLoadingProgress(85);
   hideLoadingScreen();
+  startMusic();
   console.log("[BrokeCoder] loading screen hidden, calling goToScene");
   goToScene(gameState.sceneId);
   console.log("[BrokeCoder] startNewGameFlow() complete");
@@ -1394,6 +1438,7 @@ async function init() {
   console.log("[BrokeCoder] init() starting");
   console.log("[BrokeCoder] selectors.menuItems:", selectors.menuItems);
   console.log("[BrokeCoder] menuItems count:", selectors.menuItems.length);
+  initMusic();
   renderHud();
   wireMenuClicks();
   console.log("[BrokeCoder] init() after wireMenuClicks");

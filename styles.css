@@ -232,6 +232,53 @@ body {
   width: min(900px, 94vw);
 }
 
+.soundtrack-bar {
+  width: min(900px, 94vw);
+  display: grid;
+  grid-template-columns: 1.1fr auto 220px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: linear-gradient(120deg, rgba(10, 12, 18, 0.9), rgba(10, 12, 18, 0.78));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+}
+
+.soundtrack-meta { text-align: left; }
+.soundtrack-kicker {
+  color: var(--accent-2);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.soundtrack-title { font-weight: 700; font-size: 15px; }
+
+.soundtrack-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.soundtrack-volume {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.soundtrack-volume input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+@media (max-width: 780px) {
+  .soundtrack-bar { grid-template-columns: 1fr; }
+  .soundtrack-actions { justify-content: flex-start; }
+}
+
 .hud-item {
   padding: 10px 12px;
   border-radius: 10px;
