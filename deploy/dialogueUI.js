@@ -26,6 +26,7 @@ export function showDialogue(characterId, text, choices = []) {
   nodes.text.textContent = text;
   nodes.choices.innerHTML = "";
 
+  let firstChoice = null;
   choices.forEach((choice) => {
     const btn = document.createElement("button");
     btn.className = "choice-btn";
@@ -39,6 +40,7 @@ export function showDialogue(characterId, text, choices = []) {
     btn.addEventListener("click", () => {
       if (choice.onSelect) choice.onSelect();
     });
+    if (!firstChoice) firstChoice = btn;
     nodes.choices.appendChild(btn);
   });
 
@@ -47,11 +49,40 @@ export function showDialogue(characterId, text, choices = []) {
     btn.className = "choice-btn";
     btn.textContent = "Continue";
     btn.addEventListener("click", () => hideDialogue());
+    firstChoice = btn;
     nodes.choices.appendChild(btn);
   }
 
+  // Add close button handler
+  const closeBtn = document.getElementById("dialogue-close");
+  if (closeBtn) {
+    closeBtn.onclick = () => hideDialogue();
+  }
+
+  // Add backdrop click handler
+  const handleBackdropClick = (e) => {
+    if (e.target === nodes.container) {
+      hideDialogue();
+      nodes.container.removeEventListener("click", handleBackdropClick);
+    }
+  };
+  nodes.container.addEventListener("click", handleBackdropClick);
+
   console.log("[DialogueUI] removing hidden class from container");
   nodes.container.classList.remove("hidden");
+  try {
+    // Keep the choice UI on-screen even when the mission list is long.
+    nodes.container.scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch (err) {
+    console.debug("[DialogueUI] scrollIntoView failed", err);
+  }
+  if (firstChoice) {
+    try {
+      firstChoice.focus({ preventScroll: true });
+    } catch (err) {
+      // ignore focus errors in older runtimes
+    }
+  }
   console.log("[DialogueUI] container classes after:", nodes.container.className);
 }
 

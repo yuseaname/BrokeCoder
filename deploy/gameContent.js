@@ -9,12 +9,12 @@ export const BASE_STATS = {
 };
 
 export const RESOURCE_CONFIG = {
-  focus: { id: "focus", label: "Focus Energy", max: 10, regen: 1 },
-  nerve: { id: "nerve", label: "Nerve", max: 8, regen: 1 },
-  physical: { id: "physical", label: "Physical Energy", max: 10, regen: 1 },
+  focusEnergy: { id: "focusEnergy", label: "Focus", max: 10, regen: 0 },
+  nerveEnergy: { id: "nerveEnergy", label: "Nerve", max: 8, regen: 0 },
+  physicalEnergy: { id: "physicalEnergy", label: "Physical", max: 10, regen: 0 },
 };
 
-export const START_RESOURCES = { focus: 8, nerve: 6, physical: 8 };
+export const START_RESOURCES = { focusEnergy: 8, nerveEnergy: 6, physicalEnergy: 8 };
 
 export const GEAR_LIBRARY = {
   cracked_phone: {
@@ -69,28 +69,28 @@ export const GEAR_LIBRARY = {
 
 export const SHOP_ITEMS = [
   {
-    id: "instant_noodles",
-    name: "Instant Noodles Cup",
+    id: "cup_noodles",
+    name: "Cup Noodles",
     type: "consumable",
-    cost: 6,
-    description: "Salty fuel that restores focus and physical energy.",
-    effects: { resources: { focus: 2, physical: 2 }, morale: 1 },
+    cost: 7,
+    description: "Salty fuel that restores physical energy and some nerve; costs you time to cook.",
+    effects: { resources: { physicalEnergy: 4, nerveEnergy: 1 }, morale: 1, time: 1 },
   },
   {
     id: "street_coffee",
     name: "Street Cart Coffee",
     type: "consumable",
-    cost: 8,
-    description: "Overcaffeinated brew that sharpens focus.",
-    effects: { resources: { focus: 4 }, morale: 1, stats: { focus: 1 } },
+    cost: 9,
+    description: "Overcaffeinated brew that sharpens focus but spikes jitters.",
+    effects: { resources: { focusEnergy: 5, nerveEnergy: -1 }, time: 1, stats: { focus: 1 } },
   },
   {
-    id: "planet_day_pass",
-    name: "Planet Fitness Day Pass",
+    id: "street_cart_meal",
+    name: "Street Cart Meal",
     type: "consumable",
-    cost: 12,
-    description: "Shower + nap combo. The purple glow restores morale.",
-    effects: { resources: { physical: 6 }, morale: 2, stats: { fitness: 1 } },
+    cost: 14,
+    description: "Hearty plate that rebuilds physical energy; costs daylight.",
+    effects: { resources: { physicalEnergy: 7, nerveEnergy: 1 }, morale: 1, time: 2 },
   },
   {
     id: "battery_pack",
@@ -98,7 +98,7 @@ export const SHOP_ITEMS = [
     type: "consumable",
     cost: 18,
     description: "Keep the cracked phone alive during all-nighters.",
-    effects: { resources: { focus: 3, nerve: 1 }, energy: 6 },
+    effects: { resources: { focusEnergy: 3, nerveEnergy: 1 }, energy: 6, time: 1 },
   },
   {
     id: "duct_tape",
@@ -114,7 +114,23 @@ export const SHOP_ITEMS = [
     type: "consumable",
     cost: 5,
     description: "Cheap calories for physical stamina.",
-    effects: { resources: { physical: 3 } },
+    effects: { resources: { physicalEnergy: 3 } },
+  },
+  {
+    id: "planet_day_pass",
+    name: "Locker Nap Pass",
+    type: "consumable",
+    cost: 13,
+    description: "Shower + nap combo. Restores a bit of every energy but burns time.",
+    effects: { resources: { physicalEnergy: 4, focusEnergy: 2, nerveEnergy: 2 }, morale: 2, time: 3 },
+  },
+  {
+    id: "motivation_mixtape",
+    name: "Motivational Mixtape",
+    type: "consumable",
+    cost: 18,
+    description: "Boosts nerve with hype tracks, but people side-eye you.",
+    effects: { resources: { nerveEnergy: 6 }, streetCred: -1, time: 1, flags: { mixtapePlayed: true } },
   },
   {
     id: "burner_phone",
@@ -143,7 +159,7 @@ export const SHOP_ITEMS = [
     cost: 150,
     description: "Unlocks the Laptop Era and better paying gigs.",
     season: "season1",
-    effects: { stats: { coding: 2, hustle: 1, focus: 1 }, resources: { focus: 2 } },
+    effects: { stats: { coding: 2, hustle: 1, focus: 1 }, resources: { focusEnergy: 2 } },
   },
   {
     id: "refurb_laptop",
@@ -153,7 +169,7 @@ export const SHOP_ITEMS = [
     cost: 260,
     description: "Quieter fans, better keys, more client trust.",
     season: "season2",
-    effects: { stats: { coding: 2, hustle: 1 }, resources: { focus: 2 } },
+    effects: { stats: { coding: 2, hustle: 1 }, resources: { focusEnergy: 2 } },
   },
   {
     id: "beat_up_car",
@@ -212,6 +228,16 @@ export const CITY_CONTENT = {
       image: LOCATION_IMAGES.client_house,
     },
   ],
+  missionChains: {
+    motel: ["city_motel_outlets", "city_motel_generator", "city_motel_midnight", "city_motel_rooftop"],
+    alley: ["city_alley_cleanup", "city_alley_runner", "city_alley_smuggler", "city_alley_signal"],
+    coffee_shop: [
+      "city_coffee_loyalty",
+      "city_coffee_regulars",
+      "city_coffee_afterhours",
+      "city_coffee_coldbrew",
+    ],
+  },
   missions: [
     {
       id: "motel_wifi",

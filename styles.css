@@ -673,18 +673,59 @@ body {
 }
 
 .dialogue-container {
-  position: static;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
   display: flex;
   align-items: flex-start;
   gap: 14px;
-  padding: 14px 16px;
-  background: linear-gradient(180deg, rgba(10, 12, 18, 0.92), rgba(10, 12, 18, 0.85));
-  border: 1px solid rgba(54, 241, 205, 0.28);
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(10, 12, 18, 0.98), rgba(10, 12, 18, 0.95));
+  border: 2px solid rgba(54, 241, 205, 0.4);
   border-radius: 16px;
-  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.5);
-  width: min(900px, 96vw);
-  max-width: min(900px, 96vw);
-  align-self: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(54, 241, 205, 0.1);
+  width: min(900px, 92vw);
+  max-width: min(900px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.dialogue-container::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: -1;
+  backdrop-filter: blur(4px);
+}
+
+.dialogue-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: rgba(255, 95, 175, 0.1);
+  color: var(--accent-2);
+  border-radius: 8px;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialogue-close:hover {
+  background: rgba(255, 95, 175, 0.2);
+  transform: scale(1.1);
 }
 
 #dialogue-portrait {

@@ -101,9 +101,9 @@ function createDefaultState() {
       quests: defaultQuestState(),
       stats: { ...BASE_STATS },
       resources: {
-        focus: { current: START_RESOURCES.focus, max: RESOURCE_CONFIG.focus.max },
-        nerve: { current: START_RESOURCES.nerve, max: RESOURCE_CONFIG.nerve.max },
-        physical: { current: START_RESOURCES.physical, max: RESOURCE_CONFIG.physical.max },
+        focusEnergy: { current: START_RESOURCES.focusEnergy, max: RESOURCE_CONFIG.focusEnergy.max },
+        nerveEnergy: { current: START_RESOURCES.nerveEnergy, max: RESOURCE_CONFIG.nerveEnergy.max },
+        physicalEnergy: { current: START_RESOURCES.physicalEnergy, max: RESOURCE_CONFIG.physicalEnergy.max },
       },
       gear: { device: "cracked_phone", vehicle: null },
       gearOwned: ["cracked_phone"],
@@ -115,6 +115,23 @@ function createDefaultState() {
 }
 
 const clamp = (val, min, max) => Math.max(min, Math.min(max, val));
+const RESOURCE_KEY_MAP = {
+  focus: "focusEnergy",
+  focusEnergy: "focusEnergy",
+  nerve: "nerveEnergy",
+  nerveEnergy: "nerveEnergy",
+  physical: "physicalEnergy",
+  physicalEnergy: "physicalEnergy",
+};
+
+const normalizeResourceKey = (key) => RESOURCE_KEY_MAP[key] || key;
+const resourceLabel = (key) => {
+  const normalized = normalizeResourceKey(key);
+  if (normalized === "focusEnergy") return "Focus";
+  if (normalized === "nerveEnergy") return "Nerve";
+  if (normalized === "physicalEnergy") return "Physical";
+  return normalized;
+};
 
 function xpForNext(level) {
   return 20 + (level - 1) * 15;
@@ -126,17 +143,32 @@ function unlockedSeasons() {
 
 function normalizeResources(res = {}) {
   return {
-    focus: {
-      current: res.focus?.current ?? res.focus ?? START_RESOURCES.focus,
-      max: res.focus?.max ?? RESOURCE_CONFIG.focus.max,
+    focusEnergy: {
+      current:
+        res.focusEnergy?.current ??
+        res.focusEnergy ??
+        res.focus?.current ??
+        res.focus ??
+        START_RESOURCES.focusEnergy,
+      max: res.focusEnergy?.max ?? res.focus?.max ?? RESOURCE_CONFIG.focusEnergy.max,
     },
-    nerve: {
-      current: res.nerve?.current ?? res.nerve ?? START_RESOURCES.nerve,
-      max: res.nerve?.max ?? RESOURCE_CONFIG.nerve.max,
+    nerveEnergy: {
+      current:
+        res.nerveEnergy?.current ??
+        res.nerveEnergy ??
+        res.nerve?.current ??
+        res.nerve ??
+        START_RESOURCES.nerveEnergy,
+      max: res.nerveEnergy?.max ?? res.nerve?.max ?? RESOURCE_CONFIG.nerveEnergy.max,
     },
-    physical: {
-      current: res.physical?.current ?? res.physical ?? START_RESOURCES.physical,
-      max: res.physical?.max ?? RESOURCE_CONFIG.physical.max,
+    physicalEnergy: {
+      current:
+        res.physicalEnergy?.current ??
+        res.physicalEnergy ??
+        res.physical?.current ??
+        res.physical ??
+        START_RESOURCES.physicalEnergy,
+      max: res.physicalEnergy?.max ?? res.physical?.max ?? RESOURCE_CONFIG.physicalEnergy.max,
     },
   };
 }
@@ -172,16 +204,18 @@ function hydrateState(raw) {
 function recalcResourceCaps() {
   const { player } = gameState;
   if (!player?.resources) return;
-  player.resources.focus.max = RESOURCE_CONFIG.focus.max + (player.stats.focus - 1);
-  player.resources.nerve.max = RESOURCE_CONFIG.nerve.max + Math.floor((player.stats.streetsmarts - 1) / 1.5);
-  player.resources.physical.max = RESOURCE_CONFIG.physical.max + (player.stats.fitness - 1);
+  player.resources.focusEnergy.max = RESOURCE_CONFIG.focusEnergy.max + (player.stats.focus - 1);
+  player.resources.nerveEnergy.max =
+    RESOURCE_CONFIG.nerveEnergy.max + Math.floor((player.stats.streetsmarts - 1) / 1.5);
+  player.resources.physicalEnergy.max = RESOURCE_CONFIG.physicalEnergy.max + (player.stats.fitness - 1);
   Object.values(player.resources).forEach((res) => {
     res.current = clamp(res.current, 0, res.max);
   });
 }
 
 function adjustResource(key, delta) {
-  const res = gameState.player.resources[key];
+  const normalized = normalizeResourceKey(key);
+  const res = gameState.player.resources[normalized];
   if (!res) return;
   res.current = clamp(res.current + delta, 0, res.max);
 }
@@ -214,11 +248,16 @@ function formatTime() {
 function spendResources(cost = {}) {
   const res = gameState.player.resources;
   const missing = Object.entries(cost).find(([key, value]) => {
-    const bar = res[key];
+    const normalized = normalizeResourceKey(key);
+    if (typeof value !== "number") return false;
+    const bar = res[normalized];
     return !bar || bar.current < value;
   });
   if (missing) return false;
-  Object.entries(cost).forEach(([key, value]) => adjustResource(key, -value));
+  Object.entries(cost).forEach(([key, value]) => {
+    if (typeof value !== "number") return;
+    adjustResource(key, -value);
+  });
   return true;
 }
 
@@ -258,6 +297,9 @@ function applyEffects(effects = {}) {
 
   Object.entries(effects.stats || {}).forEach(([key, delta]) => {
     player.stats[key] = clamp((player.stats[key] || 0) + delta, 1, 99);
+  });
+  ["focusEnergy", "nerveEnergy", "physicalEnergy", "focus", "nerve", "physical"].forEach((key) => {
+    if (typeof effects[key] === "number") adjustResource(key, effects[key]);
   });
   Object.entries(effects.resources || {}).forEach(([key, delta]) => adjustResource(key, delta));
 
@@ -318,9 +360,11 @@ function describeCost(cost = {}) {
   if (typeof cost.time === "number") parts.push(`Time +${cost.time}h`);
   if (typeof cost.money === "number") parts.push(`$-${cost.money}`);
   if (typeof cost.streetCred === "number") parts.push(`Cred -${cost.streetCred}`);
-  ["focus", "nerve", "physical"].forEach((key) => {
-    if (typeof cost[key] === "number") parts.push(`${RESOURCE_CONFIG[key]?.label || key} -${cost[key]}`);
-  });
+  ["focusEnergy", "focus", "nerveEnergy", "nerve", "physicalEnergy", "physical"]
+    .filter((key, index, arr) => arr.indexOf(key) === index)
+    .forEach((key) => {
+      if (typeof cost[key] === "number") parts.push(`${resourceLabel(key)} -${cost[key]}`);
+    });
   if (cost.items?.length) parts.push(`Items: ${cost.items.map((i) => `${i.id} x${i.qty || 1}`).join(", ")}`);
   return parts.join(" · ");
 }
@@ -332,6 +376,12 @@ function describePrereqs(quest = {}) {
   if (prereq.requiredItems?.length) parts.push(`Items: ${prereq.requiredItems.join(", ")}`);
   if (prereq.requiredStats) {
     Object.entries(prereq.requiredStats).forEach(([stat, val]) => parts.push(`${stat} ${val}+`));
+  }
+  if (prereq.requiredFlags) {
+    Object.entries(prereq.requiredFlags).forEach(([flag, val]) => parts.push(`${flag}:${val}`));
+  }
+  if (prereq.minResources) {
+    Object.entries(prereq.minResources).forEach(([key, val]) => parts.push(`${resourceLabel(key)} >= ${val}`));
   }
   if (prereq.minEnergy) parts.push(`Energy >= ${prereq.minEnergy}`);
   return parts.join(" · ");
@@ -797,6 +847,25 @@ function renderLocations() {
   CITY_CONTENT.locations
     .filter((loc) => allowed.includes(loc.season))
     .forEach((loc) => {
+      const questsForLocation = questManager.getQuestsForLocation(loc.id);
+      const cityQuests = questsForLocation.filter((q) => q.quest.type === "city");
+      const fallbackQuests = questsForLocation.filter((q) => q.quest.type !== "city");
+      const activeQuest = (list) => list.find((q) => q.status === "active");
+      const availableQuest = (list) => list.find((q) => q.status === "available");
+      const failedQuest = (list) => list.find((q) => q.status === "failed");
+      const completedQuest = (list) => list.find((q) => q.status === "completed" && q.quest.repeatable);
+      const displayQuest =
+        activeQuest(cityQuests) ||
+        availableQuest(cityQuests) ||
+        failedQuest(cityQuests) ||
+        completedQuest(cityQuests) ||
+        activeQuest(fallbackQuests) ||
+        availableQuest(fallbackQuests) ||
+        failedQuest(fallbackQuests) ||
+        completedQuest(fallbackQuests);
+      const missionLabel = displayQuest
+        ? `${displayQuest.quest.title} (${displayQuest.quest.difficulty || "?"})`
+        : "No missions ready";
       const card = document.createElement("div");
       card.className = "location-card";
       if (loc.id === gameState.currentLocation) card.classList.add("active");
@@ -805,6 +874,7 @@ function renderLocations() {
       card.innerHTML = `
         <h4>${loc.name}</h4>
         <p>${loc.description}</p>
+        <p class="mission-summary">Current mission: ${missionLabel}</p>
       `;
       const selectLocation = () => {
         gameState.currentLocation = loc.id;
@@ -839,23 +909,56 @@ function renderMissions(locationId = gameState.currentLocation) {
     const step = activeStepId ? quest.steps.find((s) => s.id === activeStepId) : quest.steps?.[0];
     const headlineCost = describeCost(step?.choices?.[0]?.cost || {});
     const prereqText = describePrereqs(quest);
-    const badgeLabel = quest.type === "main" ? `Act ${quest.act} Main` : quest.type === "gig" ? "Repeatable Gig" : "Side Quest";
-    const statusLabel = status === "completed" ? "Completed" : status === "active" ? "In Progress" : status === "locked" ? "Locked" : "Available";
+    const badgeLabel =
+      quest.type === "main"
+        ? `Act ${quest.act} Main`
+        : quest.type === "gig"
+          ? "Repeatable Gig"
+          : quest.type === "city"
+            ? "City Mission"
+            : "Side Quest";
+    const statusLabel =
+      status === "completed" ? "Completed" : status === "active" ? "In Progress" : status === "failed" ? "Failed" : status === "locked" ? "Locked" : "Available";
+    const difficulty = quest.difficulty || "medium";
+    const minRes = quest.prerequisites?.minResources || {};
+    const resourceReqs = Object.entries(minRes).map(([key, val]) => {
+      const bar = gameState.player.resources?.[normalizeResourceKey(key)];
+      const current = bar?.current ?? 0;
+      const warning = current < val ? " (hit Shop)" : "";
+      return `${resourceLabel(key)} ${current}/${val}${warning}`;
+    });
+    const needsRecovery = Object.entries(minRes).some(([key, val]) => {
+      const bar = gameState.player.resources?.[normalizeResourceKey(key)];
+      const current = bar?.current ?? 0;
+      return current < val;
+    });
     card.innerHTML = `
       <div>
         <h4>${quest.title} <span class="badge">${badgeLabel}</span></h4>
         <div class="mission-summary">${quest.description}</div>
       </div>
       <div class="cost-row">
-        <span class="badge">${statusLabel}</span>
+        <span class="badge">${needsRecovery ? "Needs Energy" : statusLabel}</span>
         <span>${headlineCost || "See choices for cost"}</span>
       </div>
+      <div class="mission-summary">Difficulty: ${difficulty}</div>
       <div class="mission-summary">${prereqText || "No prerequisites listed."}</div>
+      ${resourceReqs.length ? `<div class="mission-summary">Start Requires: ${resourceReqs.join(" · ")}</div>` : ""}
     `;
     const btn = document.createElement("button");
     btn.className = "primary-btn";
-    btn.textContent = status === "active" ? "Resume Quest" : status === "completed" ? "Replay (repeatable only)" : "Start Quest";
-    btn.disabled = status === "locked" || (status === "completed" && !quest.repeatable);
+    btn.textContent =
+      status === "active"
+        ? "Resume Quest"
+        : status === "completed"
+          ? "Replay (repeatable only)"
+          : status === "failed"
+            ? "Retry Quest"
+            : "Start Quest";
+    btn.disabled = status === "locked" || needsRecovery || (status === "completed" && !quest.repeatable);
+    if (needsRecovery) {
+      btn.title = "Energies too low. Hit the Shop to recover.";
+    }
     btn.onclick = () => openQuest(quest.id);
     card.appendChild(btn);
     selectors.missionList.appendChild(card);
@@ -866,10 +969,31 @@ function buildChoiceMeta(choice = {}) {
   const costs = describeCost(choice.cost || {});
   const risks = choice.risk || choice.failChance ? `Risk: ${choice.risk || `${Math.round((choice.failChance || 0) * 100)}% fail`}` : "";
   const skill = choice.skillCheck ? `Check: ${choice.skillCheck.stat} >= ${choice.skillCheck.threshold}` : "";
-  return [costs, skill, risks].filter(Boolean).join(" · ");
+  const successEnergy = [];
+  const failureEnergy = [];
+  ["focusEnergy", "focus", "nerveEnergy", "nerve", "physicalEnergy", "physical"].forEach((key) => {
+    const normalized = normalizeResourceKey(key);
+    const successDelta =
+      (choice.success?.outcomes?.resources?.[key] ??
+        choice.success?.outcomes?.resources?.[normalized] ??
+        choice.success?.outcomes?.[normalized]) ||
+      0;
+    const failDelta =
+      (choice.failure?.outcomes?.resources?.[key] ??
+        choice.failure?.outcomes?.resources?.[normalized] ??
+        choice.failure?.outcomes?.[normalized]) ||
+      0;
+    if (successDelta) successEnergy.push(`${resourceLabel(key)} ${successDelta > 0 ? "+" : ""}${successDelta}`);
+    if (failDelta) failureEnergy.push(`${resourceLabel(key)} ${failDelta > 0 ? "+" : ""}${failDelta}`);
+  });
+  const projections = [];
+  if (successEnergy.length) projections.push(`Success: ${successEnergy.join(", ")}`);
+  if (failureEnergy.length) projections.push(`Fail: ${failureEnergy.join(", ")}`);
+  return [costs, skill, risks, projections.join(" / ")].filter(Boolean).join(" · ");
 }
 
 function openQuest(questId) {
+  console.log(">>> openQuest called with questId:", questId);
   const status = questManager.getQuestWithStatus(questId);
   if (!status) {
     setStatus("Quest not found.");
@@ -879,7 +1003,7 @@ function openQuest(questId) {
     setStatus("Quest locked. Meet prerequisites first.");
     return;
   }
-  if (status.status === "available" || (status.status === "completed" && status.quest?.repeatable)) {
+  if (status.status === "available" || status.status === "failed" || (status.status === "completed" && status.quest?.repeatable)) {
     const started = questManager.startQuest(questId);
     if (!started.ok) {
       setStatus(started.reason || "Cannot start quest yet.");
@@ -891,6 +1015,7 @@ function openQuest(questId) {
 }
 
 function presentQuestStep(questId) {
+  console.log(">>> presentQuestStep called with questId:", questId);
   const data = questManager.getQuestWithStatus(questId);
   if (!data) return;
   const quest = data.quest;
@@ -909,13 +1034,18 @@ function presentQuestStep(questId) {
     setStatus("No choices available.");
     return;
   }
+  console.log(">>> About to call showDialogue with choices:", choices);
   showDialogue("charlie", `[${quest.title}] ${step.text}`, choices);
 }
 
 function handleQuestChoice(questId, choice) {
   const preview = questManager.evaluateChoice(questId, choice.id, Math.random);
   if (!preview.ok) {
-    setStatus(preview.reason || "Cannot take that action.");
+    const suggestion =
+      preview.reason && preview.reason.toLowerCase().includes("not enough")
+        ? " Grab supplies in the Shop or recover first."
+        : "";
+    setStatus(`${preview.reason || "Cannot take that action."}${suggestion}`);
     return;
   }
 
@@ -931,6 +1061,7 @@ function handleQuestChoice(questId, choice) {
     renderInventory();
     renderQuestLog();
     renderMissions();
+    renderLocations();
     saveState();
     const outcomeText = result.succeeded ? "Success" : "Setback";
     setStatus(`${outcomeText}: ${choice.label} (${preview.quest?.title || questId})`);
@@ -1071,6 +1202,18 @@ function startMission(mission) {
   });
 }
 
+function getShopPrice(item) {
+  const flags = gameState.player.flags || {};
+  let price = item.cost;
+  if (item.id === "street_cart_meal" && flags.cartVendorAnnoyed) price += 3;
+  if (item.id === "street_cart_meal" && flags.cartVendorBuddy) price -= 2;
+  if (item.id === "street_coffee" && flags.coffeeLoyalty) price -= 2;
+  if (item.id === "motivation_mixtape" && flags.sidedWithAlleyCrew) price -= 1;
+  if (item.id === "battery_pack" && flags.powerAlly) price -= 2;
+  if (item.id === "battery_pack" && flags.powerHog) price += 2;
+  return Math.max(price, 1);
+}
+
 function renderShop() {
   if (!selectors.shopList) return;
   selectors.shopList.innerHTML = "";
@@ -1080,30 +1223,32 @@ function renderShop() {
     const card = document.createElement("div");
     card.className = "shop-card";
     const owned = item.type === "gear" && gameState.player.gearOwned.includes(item.gearId);
+    const price = getShopPrice(item);
     card.innerHTML = `
       <h4>${item.name}</h4>
-      <div class="price">$${item.cost}</div>
+      <div class="price">$${price}</div>
       <div class="mission-summary">${item.description}</div>
       <div class="mission-summary">${item.season === "season2" ? "Laptop Era" : "Phone Era"} supply</div>
     `;
     const btn = document.createElement("button");
     btn.className = "primary-btn";
-    btn.textContent = owned ? "Owned" : `Buy $${item.cost}`;
-    btn.disabled = owned || gameState.player.money < item.cost;
-    btn.onclick = () => buyItem(item.id);
+    btn.textContent = owned ? "Owned" : `Buy $${price}`;
+    btn.disabled = owned || gameState.player.money < price;
+    btn.onclick = () => buyItem(item.id, price);
     card.appendChild(btn);
     selectors.shopList.appendChild(card);
   });
 }
 
-function buyItem(itemId) {
+function buyItem(itemId, explicitPrice) {
   const item = getShopItem(itemId);
   if (!item) return;
   if (item.type === "gear" && gameState.player.gearOwned.includes(item.gearId)) {
     setStatus("You already own that gear.");
     return;
   }
-  if (gameState.player.money < item.cost) {
+  const price = explicitPrice ?? getShopPrice(item);
+  if (gameState.player.money < price) {
     setStatus("Not enough money yet.");
     return;
   }
@@ -1118,8 +1263,8 @@ function buyItem(itemId) {
     else gameState.player.inventory.push({ id: item.id, qty: 1 });
   }
 
-  applyEffects({ money: -item.cost, ...(item.effects || {}) });
-  setStatus(`${item.name} purchased.`);
+  applyEffects({ money: -price, ...(item.effects || {}) });
+  setStatus(`${item.name} purchased${price !== item.cost ? ` ($${price})` : ""}.`);
   renderInventory();
   renderShop();
 }
@@ -1180,26 +1325,12 @@ function useItem(itemId) {
 }
 
 function regenerateResources() {
-  if (!gameState?.player?.resources) return;
-  let changed = false;
-  Object.values(RESOURCE_CONFIG).forEach((cfg) => {
-    const res = gameState.player.resources[cfg.id];
-    if (!res) return;
-    const next = clamp(res.current + cfg.regen, 0, res.max);
-    if (next !== res.current) {
-      res.current = next;
-      changed = true;
-    }
-  });
-  if (changed) {
-    renderHud();
-    saveState();
-  }
+  // Auto-regeneration is disabled to make the shop and recovery actions matter.
 }
 
 function startResourceTicker() {
   if (resourceTicker) clearInterval(resourceTicker);
-  resourceTicker = setInterval(regenerateResources, 9000);
+  resourceTicker = null;
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -1273,7 +1404,6 @@ async function init() {
 
   await bootstrapAssets();
   renderMmoMeta();
-  startResourceTicker();
   showTitleScreen();
   console.log("[BrokeCoder] init() complete");
 }

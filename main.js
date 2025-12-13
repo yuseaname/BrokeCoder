@@ -903,7 +903,7 @@ function renderMissions(locationId = gameState.currentLocation) {
     return;
   }
 
-  quests.forEach(({ quest, status, activeStepId }) => {
+  quests.forEach(({ quest, status, activeStepId, gating }) => {
     const card = document.createElement("div");
     card.className = "mission-card";
     const step = activeStepId ? quest.steps.find((s) => s.id === activeStepId) : quest.steps?.[0];
@@ -918,14 +918,22 @@ function renderMissions(locationId = gameState.currentLocation) {
             ? "City Mission"
             : "Side Quest";
     const statusLabel =
-      status === "completed" ? "Completed" : status === "active" ? "In Progress" : status === "failed" ? "Failed" : status === "locked" ? "Locked" : "Available";
+      status === "completed"
+        ? "Completed"
+        : status === "active"
+          ? "In Progress"
+          : status === "failed"
+            ? "Failed"
+            : status === "blocked" || status === "locked"
+              ? "Blocked"
+              : "Available";
     const difficulty = quest.difficulty || "medium";
     const minRes = quest.prerequisites?.minResources || {};
     const resourceReqs = Object.entries(minRes).map(([key, val]) => {
       const bar = gameState.player.resources?.[normalizeResourceKey(key)];
       const current = bar?.current ?? 0;
       const warning = current < val ? " (hit Shop)" : "";
-      return `${resourceLabel(key)} ${current}/${val}${warning}`;
+      return `Need ${val} ${resourceLabel(key)} (you have ${current})${warning}`;
     });
     const needsRecovery = Object.entries(minRes).some(([key, val]) => {
       const bar = gameState.player.resources?.[normalizeResourceKey(key)];
@@ -944,6 +952,7 @@ function renderMissions(locationId = gameState.currentLocation) {
       <div class="mission-summary">Difficulty: ${difficulty}</div>
       <div class="mission-summary">${prereqText || "No prerequisites listed."}</div>
       ${resourceReqs.length ? `<div class="mission-summary">Start Requires: ${resourceReqs.join(" · ")}</div>` : ""}
+      ${gating?.reasons?.length ? `<div class="mission-summary error">Blocked: ${gating.reasons.join(" / ")}</div>` : ""}
     `;
     const btn = document.createElement("button");
     btn.className = "primary-btn";
@@ -955,9 +964,12 @@ function renderMissions(locationId = gameState.currentLocation) {
           : status === "failed"
             ? "Retry Quest"
             : "Start Quest";
-    btn.disabled = status === "locked" || needsRecovery || (status === "completed" && !quest.repeatable);
+    const canStart = gating?.ok || status === "active";
+    btn.disabled = status === "locked" || status === "blocked" || needsRecovery || (status === "completed" && !quest.repeatable) || !canStart;
     if (needsRecovery) {
       btn.title = "Energies too low. Hit the Shop to recover.";
+    } else if (gating?.reasons?.length) {
+      btn.title = gating.reasons.join(" / ");
     }
     btn.onclick = () => openQuest(quest.id);
     card.appendChild(btn);
@@ -998,17 +1010,21 @@ function openQuest(questId) {
     setStatus("Quest not found.");
     return;
   }
-  if (status.status === "locked") {
-    setStatus("Quest locked. Meet prerequisites first.");
+  if (status.status === "locked" || status.status === "blocked") {
+    const reasonText = status.reasons?.length ? status.reasons.join(" / ") : "Meet prerequisites first.";
+    console.debug("[MissionStart] blocked", { questId, status: status.status, reasons: status.reasons });
+    setStatus(`Quest blocked: ${reasonText}`);
     return;
   }
   if (status.status === "available" || status.status === "failed" || (status.status === "completed" && status.quest?.repeatable)) {
     const started = questManager.startQuest(questId);
     if (!started.ok) {
+      console.debug("[MissionStart] startQuest rejected", { questId, reason: started.reason });
       setStatus(started.reason || "Cannot start quest yet.");
       return;
     }
     renderQuestLog();
+    renderMissions();
   }
   presentQuestStep(questId);
 }
@@ -1042,6 +1058,12 @@ function handleQuestChoice(questId, choice) {
       preview.reason && preview.reason.toLowerCase().includes("not enough")
         ? " Grab supplies in the Shop or recover first."
         : "";
+    console.debug("[QuestChoice] blocked", {
+      questId,
+      choiceId: choice.id,
+      reason: preview.reason,
+      gating: preview,
+    });
     setStatus(`${preview.reason || "Cannot take that action."}${suggestion}`);
     return;
   }
@@ -1139,6 +1161,37 @@ function renderQuestLog() {
     `
     )
     .join("");
+}
+
+function debugMissionStartSanity(limit = 5) {
+  const backupResources = JSON.parse(JSON.stringify(gameState.player.resources || {}));
+  const backupEnergy = { ...(gameState.player.phoneEnergy || {}) };
+
+  Object.values(gameState.player.resources || {}).forEach((res) => {
+    if (typeof res.max !== "number") res.max = res.current ?? 10;
+    res.current = res.max;
+  });
+  if (gameState.player.phoneEnergy) {
+    if (typeof gameState.player.phoneEnergy.max !== "number") gameState.player.phoneEnergy.max = 10;
+    gameState.player.phoneEnergy.current = gameState.player.phoneEnergy.max;
+  }
+
+  const targets = QUESTS.slice(0, Math.min(limit, QUESTS.length));
+  const results = targets.map((q) => {
+    const check = questManager.canStartMission(q);
+    return {
+      id: q.id,
+      ok: check.ok,
+      reasons: check.reasons.join("; "),
+      requiredEnergy: check.required.minEnergy,
+      currentEnergy: check.current.phoneEnergy,
+    };
+  });
+  console.table(results);
+
+  gameState.player.resources = backupResources;
+  gameState.player.phoneEnergy = backupEnergy;
+  return results;
 }
 
 function scaleRewards(rewards = {}, multiplier = 1) {
@@ -1403,6 +1456,10 @@ async function init() {
   renderMmoMeta();
   showTitleScreen();
   console.log("[BrokeCoder] init() complete");
+}
+
+if (typeof window !== "undefined") {
+  window.debugMissionStartSanity = debugMissionStartSanity;
 }
 
 document.addEventListener("DOMContentLoaded", () => {

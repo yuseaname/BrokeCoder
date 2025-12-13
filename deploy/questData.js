@@ -1,4 +1,673 @@
 export const QUESTS = [
+  // ---- City mission chains: multi-mission per location ----
+  {
+    id: "city_motel_outlets",
+    title: "Claim the Outlet Row",
+    description: "Secure reliable power at the roadside motel without burning bridges.",
+    type: "city",
+    locationId: "motel",
+    difficulty: "low",
+    repeatable: true,
+    prerequisites: { minResources: { focusEnergy: 2, nerveEnergy: 1, physicalEnergy: 1 } },
+    steps: [
+      {
+        id: "outlets",
+        text: "Only three outlets work and travelers guard them like treasure.",
+        choices: [
+          {
+            id: "pay_off_clerk",
+            label: "Slide the clerk a $5 to look the other way",
+            cost: { money: 5, focusEnergy: 1, nerveEnergy: 1, time: 1 },
+            risk: "Clerk might pocket it and still call security",
+            success: {
+              outcomes: { streetCred: 1, setFlags: { powerHog: false }, unlockQuests: ["city_motel_generator"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -1,
+                resources: { focusEnergy: -2, nerveEnergy: -2, physicalEnergy: -1 },
+                setFlags: { powerHog: true },
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "organize_queue",
+            label: "Organize an outlet schedule with the hallway crowd",
+            cost: { focusEnergy: 2, nerveEnergy: 1, time: 2 },
+            risk: "People might ignore your rules",
+            success: {
+              outcomes: {
+                streetCred: 2,
+                money: 8,
+                unlockQuests: ["city_motel_generator"],
+                setFlags: { powerOrganizer: true },
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -1,
+                resources: { focusEnergy: -1, nerveEnergy: -1, physicalEnergy: -1 },
+                time: 1,
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_motel_generator",
+    title: "Patch the Generator",
+    description: "The motel's backup generator coughs. Fix it or find another power source.",
+    type: "city",
+    locationId: "motel",
+    difficulty: "medium",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_motel_outlets"],
+      minResources: { focusEnergy: 2, nerveEnergy: 2, physicalEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "generator",
+        text: "The generator rattles beside a chain-link fence. Raccoons watch.",
+        choices: [
+          {
+            id: "tape_patch",
+            label: "Patch it with duct tape",
+            cost: { physicalEnergy: 2, nerveEnergy: 1, time: 1, items: [{ id: "duct_tape", qty: 1 }] },
+            success: {
+              outcomes: { streetCred: 2, setFlags: { powerAlly: true, powerHog: false }, unlockQuests: ["city_motel_midnight"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -1,
+                resources: { focusEnergy: -2, nerveEnergy: -2, physicalEnergy: -2 },
+                money: -5,
+                time: 1,
+                setFlags: { powerHog: true, powerAlly: false },
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "truck_borrow",
+            label: "Borrow a truck-stop battery",
+            cost: { money: 6, focusEnergy: 2, time: 2 },
+            success: {
+              outcomes: { streetCred: 1, money: 4, setFlags: { powerAlly: true }, unlockQuests: ["city_motel_midnight"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -1,
+                resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -1 },
+                setFlags: { powerHog: true },
+                time: 2,
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_motel_midnight",
+    title: "Midnight Power Play",
+    description: "Steal bandwidth or cut a deal before the night clerk tightens security.",
+    type: "city",
+    locationId: "motel",
+    difficulty: "medium",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_motel_generator"],
+      minResources: { focusEnergy: 3, nerveEnergy: 3, physicalEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "midnight",
+        text: "A fiber spool sits behind the desk. The clerk scrolls their phone.",
+        choices: [
+          {
+            id: "steal_spool",
+            label: "Lift the fiber spool and run",
+            cost: { physicalEnergy: 3, nerveEnergy: 2, time: 2 },
+            failChance: 0.35,
+            success: {
+              outcomes: {
+                money: 20,
+                streetCred: 2,
+                setFlags: { powerHog: false },
+                unlockQuests: ["city_motel_rooftop"],
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -2, nerveEnergy: -3, physicalEnergy: -2 },
+                setFlags: { powerHog: true, cartVendorAnnoyed: true },
+                time: 2,
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "cut_deal",
+            label: "Cut a deal with the manager",
+            cost: { money: 12, focusEnergy: 2, nerveEnergy: 2, time: 1 },
+            success: {
+              outcomes: {
+                streetCred: 3,
+                unlockQuests: ["city_motel_rooftop"],
+                setFlags: { motelManagerFriend: true, powerAlly: true },
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -1 },
+                money: -6,
+                setFlags: { powerHog: true, powerAlly: false },
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_motel_rooftop",
+    title: "Rooftop Relay",
+    description: "Climb to the roof, lock in power, and decide who gets access.",
+    type: "city",
+    locationId: "motel",
+    difficulty: "hard",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_motel_midnight"],
+      minResources: { focusEnergy: 3, nerveEnergy: 3, physicalEnergy: 3 },
+    },
+    steps: [
+      {
+        id: "relay",
+        text: "Wind whips across the rooftop. You can share bandwidth or hoard it.",
+        choices: [
+          {
+            id: "install_repeater",
+            label: "Install a shared repeater (uses battery pack)",
+            cost: { focusEnergy: 3, nerveEnergy: 2, physicalEnergy: 2, time: 2, items: [{ id: "battery_pack", qty: 1 }] },
+            success: {
+              outcomes: {
+                streetCred: 4,
+                money: 30,
+                setFlags: { powerAlly: true, coffeeLoyalty: true },
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -3, nerveEnergy: -3, physicalEnergy: -3 },
+                setFlags: { powerHog: true, powerAlly: false },
+                time: 2,
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "sell_slots",
+            label: "Sell power slots to desperate tenants",
+            cost: { focusEnergy: 2, nerveEnergy: 3, time: 2 },
+            success: {
+              outcomes: { money: 45, streetCred: 1, setFlags: { powerHog: true, cartVendorBuddy: false } },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -3,
+                resources: { focusEnergy: -2, nerveEnergy: -3, physicalEnergy: -2 },
+                setFlags: { cartVendorAnnoyed: true },
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_alley_cleanup",
+    title: "Alley Reset",
+    description: "Decide if you clean the walls or exploit the drama for clout.",
+    type: "city",
+    locationId: "alley",
+    difficulty: "low",
+    repeatable: true,
+    prerequisites: { minResources: { nerveEnergy: 2, physicalEnergy: 2 } },
+    steps: [
+      {
+        id: "cleanup",
+        text: "A toxic tag ruins the alley vibe. Kids watch what you do.",
+        choices: [
+          {
+            id: "paint_over",
+            label: "Paint over the slur",
+            cost: { nerveEnergy: 1, physicalEnergy: 2, time: 1, money: 4 },
+            success: {
+              outcomes: { streetCred: 2, setFlags: { sidedWithAlleyCrew: true }, unlockQuests: ["city_alley_runner"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -1,
+                resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -1 },
+                time: 1,
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "film_it",
+            label: "Film and post for clout",
+            cost: { focusEnergy: 2, nerveEnergy: 1, time: 1 },
+            success: {
+              outcomes: { streetCred: 1, money: 10, setFlags: { cartVendorAnnoyed: true }, unlockQuests: ["city_alley_runner"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { nerveEnergy: -2, physicalEnergy: -1 },
+                setFlags: { cartVendorAnnoyed: true },
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_alley_runner",
+    title: "Runner's Favor",
+    description: "Deliver a package through Venice Alley while dodging trouble.",
+    type: "city",
+    locationId: "alley",
+    difficulty: "medium",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_alley_cleanup"],
+      minResources: { physicalEnergy: 3, nerveEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "runner",
+        text: "A fixer needs a package across the alley. The clock starts now.",
+        choices: [
+          {
+            id: "sprint_it",
+            label: "Sprint it yourself",
+            cost: { physicalEnergy: 3, nerveEnergy: 2, time: 1 },
+            success: {
+              outcomes: {
+                streetCred: 2,
+                money: 14,
+                setFlags: { sidedWithAlleyCrew: true },
+                unlockQuests: ["city_alley_smuggler"],
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -2 },
+                time: 1,
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "hire_kid",
+            label: "Hire a scooter kid",
+            cost: { money: 10, focusEnergy: 1, time: 1 },
+            success: {
+              outcomes: { streetCred: 1, setFlags: { cartVendorBuddy: true }, unlockQuests: ["city_alley_smuggler"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -1,
+                money: -10,
+                resources: { nerveEnergy: -1, physicalEnergy: -1 },
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_alley_smuggler",
+    title: "Shadow the Samurai",
+    description: "Follow the alley samurai or bribe your way past the gate.",
+    type: "city",
+    locationId: "alley",
+    difficulty: "medium",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_alley_runner"],
+      minResources: { focusEnergy: 3, nerveEnergy: 3, physicalEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "smuggler",
+        text: "Night rain, neon puddles. Security guards swap shifts.",
+        choices: [
+          {
+            id: "shadow",
+            label: "Shadow the samurai to learn the route",
+            cost: { nerveEnergy: 3, physicalEnergy: 2, time: 2 },
+            failChance: 0.4,
+            success: {
+              outcomes: {
+                streetCred: 3,
+                money: 18,
+                setFlags: { sidedWithAlleyCrew: true },
+                unlockQuests: ["city_alley_signal"],
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -2, nerveEnergy: -3, physicalEnergy: -2 },
+                setFlags: { cartVendorAnnoyed: true },
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "bribe_guard",
+            label: "Bribe the security guard",
+            cost: { money: 15, focusEnergy: 2, nerveEnergy: 1, time: 1 },
+            success: {
+              outcomes: { streetCred: 1, setFlags: { cartVendorBuddy: true }, unlockQuests: ["city_alley_signal"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -1 },
+                money: -15,
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_alley_signal",
+    title: "Alley Signal Hub",
+    description: "Decide who controls the alley signal and who pays.",
+    type: "city",
+    locationId: "alley",
+    difficulty: "hard",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_alley_smuggler"],
+      minResources: { focusEnergy: 3, nerveEnergy: 3, physicalEnergy: 3 },
+    },
+    steps: [
+      {
+        id: "signal",
+        text: "A rooftop relay hums above skaters and street vendors.",
+        choices: [
+          {
+            id: "share_signal",
+            label: "Wire it for the alley crew",
+            cost: { focusEnergy: 3, physicalEnergy: 3, time: 2 },
+            success: {
+              outcomes: {
+                streetCred: 3,
+                money: 25,
+                setFlags: { powerAlly: true, sidedWithAlleyCrew: true },
+                unlockQuests: ["city_coffee_afterhours"],
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -3, nerveEnergy: -3, physicalEnergy: -3 },
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "sell_signal",
+            label: "Sell the relay plans to a reseller",
+            cost: { nerveEnergy: 3, focusEnergy: 2, time: 1 },
+            success: {
+              outcomes: { money: 40, streetCred: -1, setFlags: { cartVendorAnnoyed: true } },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -3,
+                resources: { focusEnergy: -2, nerveEnergy: -3, physicalEnergy: -2 },
+              },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_coffee_loyalty",
+    title: "Earn the Drip Loyalty",
+    description: "Buy goodwill or fix tech to secure coffee shop privileges.",
+    type: "city",
+    locationId: "coffee_shop",
+    difficulty: "low",
+    repeatable: true,
+    prerequisites: { minResources: { focusEnergy: 2, nerveEnergy: 1 } },
+    steps: [
+      {
+        id: "loyalty",
+        text: "Barista Jade wants loyalty before giving you outlets.",
+        choices: [
+          {
+            id: "buy_card",
+            label: "Buy a loyalty card",
+            cost: { money: 8, focusEnergy: 1, time: 1 },
+            success: {
+              outcomes: { streetCred: 1, setFlags: { coffeeLoyalty: true }, unlockQuests: ["city_coffee_regulars"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -1, resources: { focusEnergy: -1, nerveEnergy: -1 } },
+              failQuest: true,
+            },
+          },
+          {
+            id: "fix_for_tabs",
+            label: "Fix the POS tablet for free coffee",
+            cost: { focusEnergy: 2, nerveEnergy: 1, time: 1 },
+            success: {
+              outcomes: { streetCred: 2, money: 5, setFlags: { coffeeLoyalty: true }, unlockQuests: ["city_coffee_regulars"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -1, resources: { focusEnergy: -1, nerveEnergy: -1, physicalEnergy: -1 } },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_coffee_regulars",
+    title: "Handle the Regulars",
+    description: "Keep the coffee shop regulars happy to secure socket priority.",
+    type: "city",
+    locationId: "coffee_shop",
+    difficulty: "medium",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_coffee_loyalty"],
+      minResources: { focusEnergy: 3, nerveEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "regulars",
+        text: "Printers jam, tablets freeze, and streamers beg for bandwidth.",
+        choices: [
+          {
+            id: "triage",
+            label: "Triage everything in one sprint",
+            cost: { focusEnergy: 3, nerveEnergy: 2, time: 2 },
+            success: {
+              outcomes: {
+                streetCred: 2,
+                money: 15,
+                setFlags: { shopWifiPriority: true },
+                unlockQuests: ["city_coffee_afterhours"],
+              },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: {
+                streetCred: -2,
+                resources: { focusEnergy: -2, nerveEnergy: -2, physicalEnergy: -1 },
+              },
+              failQuest: true,
+            },
+          },
+          {
+            id: "upsell",
+            label: "Sell upsells and tip jars",
+            cost: { focusEnergy: 2, nerveEnergy: 2, time: 1 },
+            success: {
+              outcomes: { streetCred: 1, money: 10, setFlags: { cartVendorBuddy: true }, unlockQuests: ["city_coffee_afterhours"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -1, resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -1 } },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_coffee_afterhours",
+    title: "After-Hours Access",
+    description: "Negotiate after-hours access for real focus time.",
+    type: "city",
+    locationId: "coffee_shop",
+    difficulty: "medium",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_coffee_regulars"],
+      minResources: { focusEnergy: 2, nerveEnergy: 3, physicalEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "afterhours",
+        text: "Jade will let you stay late if you help close—or host a mic night.",
+        choices: [
+          {
+            id: "close_with_jade",
+            label: "Close the shop with Jade",
+            cost: { physicalEnergy: 2, nerveEnergy: 2, time: 2 },
+            success: {
+              outcomes: { streetCred: 2, setFlags: { coffeeLoyalty: true }, unlockQuests: ["city_coffee_coldbrew"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -1, resources: { focusEnergy: -1, nerveEnergy: -2, physicalEnergy: -1 } },
+              failQuest: true,
+            },
+          },
+          {
+            id: "host_open_mic",
+            label: "Host an after-hours open mic",
+            cost: { focusEnergy: 2, nerveEnergy: 3, time: 2 },
+            success: {
+              outcomes: { streetCred: 3, money: 18, setFlags: { sidedWithAlleyCrew: true }, unlockQuests: ["city_coffee_coldbrew"] },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -2, resources: { focusEnergy: -2, nerveEnergy: -3, physicalEnergy: -1 } },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
+  {
+    id: "city_coffee_coldbrew",
+    title: "Cold Brew Deal",
+    description: "Decide whether to share the recipe or cash out to a rival cart.",
+    type: "city",
+    locationId: "coffee_shop",
+    difficulty: "hard",
+    repeatable: true,
+    prerequisites: {
+      completedQuests: ["city_coffee_afterhours"],
+      minResources: { focusEnergy: 4, nerveEnergy: 3, physicalEnergy: 2 },
+    },
+    steps: [
+      {
+        id: "coldbrew",
+        text: "The new cold brew recipe could fund your grind or burn relationships.",
+        choices: [
+          {
+            id: "share_with_alley",
+            label: "Share with the alley crew and deliver a batch",
+            cost: { focusEnergy: 3, physicalEnergy: 2, time: 2 },
+            success: {
+              outcomes: { money: 28, streetCred: 3, setFlags: { cartVendorBuddy: true } },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -2, resources: { focusEnergy: -2, nerveEnergy: -2, physicalEnergy: -2 } },
+              failQuest: true,
+            },
+          },
+          {
+            id: "sell_recipe",
+            label: "Sell the recipe to a rival cart",
+            cost: { focusEnergy: 2, nerveEnergy: 3, time: 1 },
+            success: {
+              outcomes: { money: 40, streetCred: -1, setFlags: { cartVendorAnnoyed: true } },
+              completeQuest: true,
+            },
+            failure: {
+              outcomes: { streetCred: -3, resources: { focusEnergy: -2, nerveEnergy: -3, physicalEnergy: -1 } },
+              failQuest: true,
+            },
+          },
+        ],
+      },
+    ],
+  },
   // ---- Act 1: Phone Era mainline ----
   {
     id: "main_a1_boot",
