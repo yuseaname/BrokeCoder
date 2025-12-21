@@ -3,11 +3,102 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BrokeCoder</title>
+  <title>BrokeCoder - Learn Typing & Coding Through Gaming</title>
+  <meta name="description" content="Master typing and coding skills through an immersive browser-based RPG. Navigate LA's digital jungle while building real-world tech career skills." />
+  <meta name="keywords" content="typing game, learn to code, coding game, typing RPG, programming tutorial, tech careers" />
+  <meta name="author" content="BrokeCoder" />
+  <link rel="canonical" href="https://brokercoder.cloud/" />
+  
+  <!-- OpenGraph / Social Meta Tags -->
+  <meta property="og:title" content="BrokeCoder - Learn Typing & Coding Through Gaming" />
+  <meta property="og:description" content="Master typing and coding skills through an immersive browser-based RPG." />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://brokercoder.cloud/" />
+  <meta property="og:image" content="https://brokercoder.cloud/media/game/brokecoder-og.png" />
+  <meta property="og:site_name" content="BrokeCoder" />
+  
+  <!-- Twitter Card Meta Tags -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="BrokeCoder - Learn Typing & Coding Through Gaming" />
+  <meta name="twitter:description" content="Master typing and coding skills through an immersive browser-based RPG." />
+  <meta name="twitter:image" content="https://brokercoder.cloud/media/game/brokecoder-og.png" />
+  
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💻</text></svg>" />
   <link rel="stylesheet" href="./styles.css?v=7" />
+  <link rel="stylesheet" href="./seo-styles.css" />
+
+  <!-- Consent + analytics loader (gated) -->
+  <script type="module" src="./consent.js"></script>
 </head>
 <body>
+  <!-- SEO Navigation -->
+  <nav id="main-nav" class="main-nav hidden">
+    <div class="nav-container">
+      <a href="#/" class="nav-logo">
+        <span class="logo-icon">💻</span>
+        <span class="logo-text">BrokeCoder</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#/play">Play</a></li>
+        <li><a href="#/blog">Blog</a></li>
+        <li><a href="#/careers">Careers</a></li>
+        <li><a href="#/skills">Skills</a></li>
+        <li><a href="#/tools">Tools</a></li>
+        <li><a href="#/learn-typing">Typing Hub</a></li>
+        <li><a href="#/learn-javascript">JavaScript Hub</a></li>
+        <li><a href="#/about">About</a></li>
+        <li><a href="#/faq">FAQ</a></li>
+      </ul>
+    </div>
+  </nav>
+
+  <!-- SEO Content Container -->
+  <div id="app-container" class="app-container hidden"></div>
+
+  <!-- SEO Footer -->
+  <footer id="main-footer" class="main-footer hidden">
+    <div class="footer-container">
+      <div class="footer-section">
+        <h3>BrokeCoder</h3>
+        <p>Master typing and coding through an immersive browser-based RPG.</p>
+      </div>
+      <div class="footer-section">
+        <h4>Learn</h4>
+        <ul>
+          <li><a href="#/how-it-works">How It Works</a></li>
+          <li><a href="#/blog">Blog</a></li>
+          <li><a href="#/careers">Career Paths</a></li>
+          <li><a href="#/skills">Skills</a></li>
+          <li><a href="#/careers-hub">Careers Hub</a></li>
+          <li><a href="#/devices-hub">Devices Hub</a></li>
+          <li><a href="#/game-guide">Game Guide</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Play</h4>
+        <ul>
+          <li><a href="#/play">Start Game</a></li>
+          <li><a href="#/devices">Device Guide</a></li>
+          <li><a href="#/faq">FAQ</a></li>
+        </ul>
+      </div>
+      <div class="footer-section">
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="#/contact">Contact</a></li>
+          <li><a href="#/privacy-policy">Privacy Policy</a></li>
+          <li><a href="#/terms">Terms of Service</a></li>
+          <li><a href="#/disclaimer">Disclaimer</a></li>
+          <li><a href="#" id="privacy-settings-link">Privacy Settings</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2025 BrokeCoder. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Game Screens (original game) -->
   <div id="loading-screen" class="screen hidden" aria-live="polite">
     <div class="loading-content">
       <div class="loading-title">Loading BrokeCoder...</div>
@@ -18,7 +109,7 @@
     </div>
   </div>
 
-  <div id="title-screen" class="screen">
+  <div id="title-screen" class="screen hidden">
     <div class="title-layout">
       <div class="title-content">
         <div class="logo">
@@ -190,6 +281,9 @@
     </div>
   </div>
 
+  <!-- Initialize SEO-friendly routing FIRST -->
+  <script type="module" src="./app.js"></script>
+  <!-- Then load game logic -->
   <script type="module" src="./main.js?v=7"></script>
 </body>
 </html>

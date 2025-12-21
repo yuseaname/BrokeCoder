@@ -1,0 +1,7 @@
+MISSING CONTENT PIECES TO ADD TO CONTENT-EXPANSION.js
+
+This file contains all the content needed to replace the [CONTENT: ...] placeholders.
+
+====================================
+BLOG 1: first-90-days-junior-developer
+====================================

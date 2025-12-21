@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Allow: /learn-typing
+Allow: /learn-javascript
+Allow: /careers-hub
+Allow: /devices-hub
+Allow: /game-guide
+
+# Sitemap location
+Sitemap: https://brokercoder.cloud/sitemap.xml
+
+# Crawl delay (be nice to servers)
+Crawl-delay: 1
+
+# Disallow any future admin or private routes
+Disallow: /admin/
+Disallow: /api/private/

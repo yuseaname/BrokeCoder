@@ -1531,7 +1531,15 @@ async function init() {
 
   await bootstrapAssets();
   renderMmoMeta();
-  showTitleScreen();
+  // Only show the game title screen when on the play route
+  const initialHash = window.location.hash.slice(1) || '/';
+  if (initialHash.startsWith('/play')) {
+    showTitleScreen();
+  } else {
+    // Keep game screens hidden for SEO pages
+    selectors.titleScreen?.classList.add('hidden');
+    selectors.gameScreen?.classList.add('hidden');
+  }
   console.log("[BrokeCoder] init() complete");
 }
 

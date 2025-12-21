@@ -1,0 +1,110 @@
+[
+  {
+    "slug": "social-media-manager",
+    "title": "Social Media Manager",
+    "description": "Plan, create, and manage brand social media that drives real results—strategy, content, analytics, and client acquisition.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "seo-writer",
+    "title": "Content Writer (SEO Writer)",
+    "description": "Write search-friendly content that ranks and converts—keyword research, outlines, drafts, and optimization.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "copywriter",
+    "title": "Copywriter (Direct Response)",
+    "description": "Write words that sell—landing pages, ads, emails, and offers that convert readers to customers.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "seo-specialist",
+    "title": "SEO Specialist",
+    "description": "Help websites earn organic traffic with technical fixes, content strategy, and authority building.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "ppc-ads-manager",
+    "title": "PPC / Ads Manager (Google/Meta)",
+    "description": "Plan and run paid ads campaigns that profit—targeting, creatives, testing, and reporting.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "email-marketing-specialist",
+    "title": "Email Marketing Specialist",
+    "description": "Plan, write, and optimize email campaigns that nurture, launch, and convert—without spammy tactics.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "web-designer",
+    "title": "Web Designer (No-Code / WordPress)",
+    "description": "Design and build clean websites with no-code tools and WordPress—structure, UX, and conversion-focused pages.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "wordpress-developer",
+    "title": "WordPress Developer (More Technical)",
+    "description": "Build and customize WordPress sites—themes, plugins, performance, and clean implementation.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "shopify-ecommerce-builder",
+    "title": "Shopify / E-commerce Builder",
+    "description": "Build and optimize Shopify stores—theme tweaks, product pages, checkout, and growth experiments.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "video-editor",
+    "title": "Video Editor (Short-form + YouTube)",
+    "description": "Edit engaging videos for creators and brands—hooks, pacing, subtitles, and story.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "ugc-creator",
+    "title": "UGC Creator (Brand Content)",
+    "description": "Make authentic content for brands—product demos, reviews, and short-form videos that feel like real life.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "affiliate-marketer",
+    "title": "Affiliate Marketer / Niche Site Builder",
+    "description": "Build content sites that earn affiliate commissions—keywords, helpful content, and monetization.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "blogger-adsense-publisher",
+    "title": "Blogger / AdSense Publisher",
+    "description": "Publish helpful content and monetize with ads—topic selection, writing systems, and traffic growth.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "online-course-creator",
+    "title": "Online Course Creator",
+    "description": "Teach what you know—plan courses, produce lessons, and sell honestly with student-first outcomes.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "community-manager",
+    "title": "Community Manager / Discord Moderator",
+    "description": "Build healthy online communities—moderation, events, guidelines, and member experience.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "virtual-assistant",
+    "title": "Virtual Assistant (Tech-Forward VA)",
+    "description": "Support teams with systems, content, and coordination—organized, reliable, and tech-savvy.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "remote-sdr",
+    "title": "Sales Development Rep (Remote SDR)",
+    "description": "Book qualified meetings for sales teams—prospecting, outreach, and pipeline discipline.",
+    "updated": "2025-12-20"
+  },
+  {
+    "slug": "data-analyst",
+    "title": "Data Analyst (Entry-Level Remote Track)",
+    "description": "Turn messy data into clear insights—SQL, spreadsheets, dashboards, and communication.",
+    "updated": "2025-12-20"
+  }
+]
